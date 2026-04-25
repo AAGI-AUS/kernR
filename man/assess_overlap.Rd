@@ -24,3 +24,20 @@ A list of class \code{"overlap_diagnostic"} with:
 Diagnoses overlap (positivity) between treated and control groups
 by summarising the propensity score distributions.
 }
+\examples{
+set.seed(1)
+x <- matrix(rnorm(200), 100, 2)
+t <- rbinom(100, 1, plogis(0.5 * x[, 1]))
+ps <- estimate_propensity(t, x, method = "logistic")
+assess_overlap(ps, t)
+
+}
+\seealso{
+\code{\link[=estimate_propensity]{estimate_propensity()}}, \code{\link[=plot_weights]{plot_weights()}},
+\code{\link[=effective_sample_size]{effective_sample_size()}}.
+
+Other diagnostics: 
+\code{\link{effective_sample_size}()},
+\code{\link{plot_weights}()}
+}
+\concept{diagnostics}

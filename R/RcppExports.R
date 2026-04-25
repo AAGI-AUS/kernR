@@ -3,7 +3,7 @@
 
 #' RuLSIF kernel density ratio estimation (core solver)
 #'
-#' Solves the RuLSIF optimisation: theta = (H + lambda*I)^{-1} h
+#' Solves the RuLSIF optimisation \eqn{\theta = (H + \lambda I)^{-1} h}
 #' with non-negativity constraint (clamp negatives to 0).
 #'
 #' @param H Gram matrix (n_basis x n_basis).
@@ -30,7 +30,7 @@ hsic_stat_cpp <- function(Kx, Ky) {
 
 #' Compute the weighted HSIC statistic (for bd-HSIC)
 #'
-#' Weighted version: sum_{i,j} w_i * w_j * Kxc_{ij} * Kyc_{ij}
+#' Weighted version: \eqn{\sum_{i,j} w_i \, w_j \, K_{xc,ij} \, K_{yc,ij}}
 #'
 #' @param Kx n x n kernel matrix for X.
 #' @param Ky n x n kernel matrix for Y.
@@ -105,10 +105,8 @@ polynomial_kernel_matrix_cpp <- function(x, y, degree, offset) {
 
 #' Compute the unbiased MMD^2 statistic
 #'
-#' Unbiased estimator of MMD^2:
-#'   1/(n(n-1)) sum_{i!=j} K_xx(i,j)
-#' + 1/(m(m-1)) sum_{i!=j} K_yy(i,j)
-#' - 2/(nm) sum_{i,j} K_xy(i,j)
+#' Unbiased estimator of \eqn{MMD^2}:
+#' \deqn{\frac{1}{n(n-1)} \sum_{i \neq j} K_{xx}(i,j) + \frac{1}{m(m-1)} \sum_{i \neq j} K_{yy}(i,j) - \frac{2}{nm} \sum_{i,j} K_{xy}(i,j)}
 #'
 #' @param Kxx n x n kernel matrix for sample X.
 #' @param Kyy m x m kernel matrix for sample Y.
@@ -128,6 +126,31 @@ mmd2_unbiased_cpp <- function(Kxx, Kyy, Kxy) {
 #' @keywords internal
 mmd2_biased_cpp <- function(Kxx, Kyy, Kxy) {
     .Call(`_kernR_mmd2_biased_cpp`, Kxx, Kyy, Kxy)
+}
+
+#' Nystrom low-rank factorisation
+#'
+#' Given the cross-block C (n x m) and inner block W (m x m) of a kernel
+#' matrix evaluated at m landmark points, returns U such that the rank-r
+#' Nystrom approximation is \eqn{\tilde K = U U^\top}, with
+#' \eqn{r \le m} columns retained after eigenvalue thresholding.
+#'
+#' Uses the symmetric eigendecomposition \eqn{W = V \Lambda V^\top} and
+#' sets \eqn{U = C V \Lambda_+^{-1/2}} where \eqn{\Lambda_+} keeps only
+#' eigenvalues above \eqn{\mathrm{tol} \cdot \max(\Lambda)}. This handles
+#' rank-deficient W (e.g. when landmarks are near-duplicates) without
+#' the numerical instability of a direct pseudo-inverse.
+#'
+#' @param C Cross-block kernel matrix (n x m).
+#' @param W Landmark-landmark kernel matrix (m x m), assumed symmetric PSD.
+#' @param tol Relative eigenvalue threshold. Eigenvalues
+#'   \eqn{\lambda_i \le \mathrm{tol} \cdot \max(\Lambda)} are dropped.
+#'   Default 1e-10.
+#' @return U: an n x r matrix with \eqn{r \le m} columns. Approximation
+#'   \eqn{\tilde K = U U^\top} is symmetric PSD by construction.
+#' @keywords internal
+nystrom_factor_cpp <- function(C, W, tol = 1e-10) {
+    .Call(`_kernR_nystrom_factor_cpp`, C, W, tol)
 }
 
 #' Permutation HSIC: compute HSIC for many Y permutations

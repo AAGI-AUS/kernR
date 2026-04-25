@@ -15,14 +15,28 @@
 #' @param density_ratio Character. Method for density ratio estimation:
 #'   `"logistic"` (default), `"ranger"`, `"xgboost"`, or `"rulsif"`.
 #' @param n_permutations Integer. Number of permutations for the null
-#'   distribution. Default is 500.
+#'   distribution when `adaptive = FALSE`. Default is 500.
 #' @param n_clusters Integer or `"auto"`. Number of clusters for valid
 #'   permutation. Default is `"auto"`.
 #' @param split_ratio Numeric in (0, 1). Proportion of data for training
 #'   the density ratio estimator. Default is 0.5.
-#' @param alpha Numeric. Significance level. Default is 0.05.
+#' @param alpha Numeric. Significance level. Used both as the reporting
+#'   threshold and, when `adaptive = TRUE`, as the early-stopping
+#'   threshold. Default is 0.05.
+#' @param adaptive Logical. If `TRUE`, use the sequential / adaptive
+#'   permutation procedure of Besag & Clifford (1991) and Gandy (2009)
+#'   via [adaptive_permutation_pvalue()]. Default is `FALSE`
+#'   (byte-identical to previous behaviour).
+#' @param B_max Integer. Hard upper bound on permutations when
+#'   `adaptive = TRUE`. Default is 9999.
+#' @param batch_size Integer. Permutations drawn per adaptive batch.
+#'   Default is 100.
 #' @param seed Integer or `NULL`. Random seed for reproducibility.
 #' @param verbose Logical. Print progress. Default is `FALSE`.
+#'
+#' @family tests-causal
+#' @seealso [hsic_test()] (no confounding adjustment),
+#'   [kernel_causal_test()] (formula interface).
 #'
 #' @return An object of class `"kernel_test_result"`.
 #'
@@ -66,6 +80,9 @@ bd_hsic_test <- function(x, y, z,
                          n_clusters = "auto",
                          split_ratio = 0.5,
                          alpha = 0.05,
+                         adaptive = FALSE,
+                         B_max = 9999L,
+                         batch_size = 100L,
                          seed = NULL,
                          verbose = FALSE) {
   cl <- match.call()
@@ -139,6 +156,39 @@ bd_hsic_test <- function(x, y, z,
     z[idx_test, , drop = FALSE],
     n_clusters = n_clusters
   )
+
+  if (isTRUE(adaptive)) {
+    perm_fun <- function(n_perms) {
+      cluster_permutation_hsic(Kx, Ky, weights, clusters, as.integer(n_perms))
+    }
+    adp <- adaptive_permutation_pvalue(
+      observed = stat_obs,
+      perm_fun = perm_fun,
+      B_min = max(99L, as.integer(batch_size)),
+      B_max = as.integer(B_max),
+      batch_size = as.integer(batch_size),
+      alpha = alpha,
+      seed = NULL
+    )
+    return(structure(
+      list(
+        statistic = stat_obs,
+        p_value = adp$p_value,
+        method = "bd-HSIC",
+        n = n_test,
+        n_permutations = adp$n_perms_used,
+        null_distribution = adp$null_distribution,
+        ess = ess,
+        weights = weights,
+        kernel_x = kernel_x,
+        kernel_y = kernel_y,
+        n_perms_used = adp$n_perms_used,
+        stop_reason = adp$stop_reason,
+        call = cl
+      ),
+      class = "kernel_test_result"
+    ))
+  }
 
   # Permutation null distribution
   null_dist <- cluster_permutation_hsic(

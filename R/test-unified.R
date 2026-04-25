@@ -8,8 +8,15 @@
 #' @param method Character. Test method: `"dr-date"` (default), `"dr-dett"`,
 #'   or `"bd-hsic"`.
 #' @param ... Additional arguments passed to the specific test function.
+#'   This includes the sequential / adaptive permutation controls
+#'   `adaptive`, `B_max`, and `batch_size` — see [dr_date_test()],
+#'   [dr_dett_test()], and [bd_hsic_test()] for details.
 #'
 #' @return An object of class `"kernel_test_result"`.
+#'
+#' @family tests-causal
+#' @seealso [bd_hsic_test()], [dr_date_test()], [dr_dett_test()] for the
+#'   underlying tests; the formula syntax dispatches to one of these.
 #'
 #' @examples
 #' set.seed(42)

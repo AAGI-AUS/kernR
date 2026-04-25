@@ -20,3 +20,11 @@ w <- runif(100, 0.5, 2)
 effective_sample_size(w)
 
 }
+\seealso{
+\code{\link[=assess_overlap]{assess_overlap()}}, \code{\link[=plot_weights]{plot_weights()}}.
+
+Other diagnostics: 
+\code{\link{assess_overlap}()},
+\code{\link{plot_weights}()}
+}
+\concept{diagnostics}

@@ -1,0 +1,54 @@
+{
+  "@context": "https://doi.org/10.5063/schema/codemeta-2.0",
+  "@type": "SoftwareSourceCode",
+  "identifier": "kernR",
+  "description": "Kernel-based hypothesis tests for causal inference and distributional treatment effects. Implements backdoor-adjusted HSIC (bd-HSIC) for testing causal association, and doubly robust kernel statistics (DR-DATE, DR-DETT) for testing distributional treatment effects beyond mean shifts. Supports binary, continuous, and mixed treatments, hierarchical/nested data structures, and scales to larger datasets via Nystrom approximation and random Fourier features.",
+  "name": "kernR: Kernel-Based Causal Distributional Testing",
+  "codeRepository": "https://github.com/AAGI-AUS/kernR",
+  "issueTracker": "https://github.com/AAGI-AUS/kernR/issues",
+  "license": "https://spdx.org/licenses/MIT",
+  "version": "0.1.0",
+  "programmingLanguage": [
+    {"@type": "ComputerLanguage", "name": "R"},
+    {"@type": "ComputerLanguage", "name": "C++"}
+  ],
+  "runtimePlatform": "R version 4.1.0 or later",
+  "author": [
+    {
+      "@type": "Person",
+      "givenName": "Max",
+      "familyName": "Moldovan",
+      "email": "max.moldovan@gmail.com",
+      "@id": "https://orcid.org/0000-0001-9680-8474"
+    },
+    {
+      "@type": "Person",
+      "givenName": "Dino",
+      "familyName": "Sejdinovic",
+      "email": "dino.sejdinovic@adelaide.edu.au",
+      "@id": "https://orcid.org/0000-0001-5547-9213"
+    }
+  ],
+  "maintainer": [
+    {
+      "@type": "Person",
+      "givenName": "Max",
+      "familyName": "Moldovan",
+      "email": "max.moldovan@gmail.com",
+      "@id": "https://orcid.org/0000-0001-9680-8474"
+    }
+  ],
+  "keywords": [
+    "causal-inference",
+    "kernel-methods",
+    "HSIC",
+    "MMD",
+    "distributional-testing",
+    "doubly-robust",
+    "R-package"
+  ],
+  "softwareRequirements": [
+    {"@type": "SoftwareApplication", "identifier": "data.table"},
+    {"@type": "SoftwareApplication", "identifier": "Rcpp"}
+  ]
+}

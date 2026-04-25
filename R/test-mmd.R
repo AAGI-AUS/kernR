@@ -6,9 +6,24 @@
 #' @param x Numeric vector, matrix, or data.frame. First sample.
 #' @param y Numeric vector, matrix, or data.frame. Second sample.
 #' @param kernel Kernel specification. Default is RBF with median heuristic.
-#' @param n_permutations Integer. Number of permutations. Default is 500.
-#' @param alpha Numeric. Significance level. Default is 0.05.
+#' @param n_permutations Integer. Number of permutations when
+#'   `adaptive = FALSE`. Default is 500.
+#' @param alpha Numeric. Significance level. Used both as the reporting
+#'   threshold and, when `adaptive = TRUE`, as the early-stopping
+#'   threshold. Default is 0.05.
+#' @param adaptive Logical. If `TRUE`, use the sequential / adaptive
+#'   permutation procedure of Besag & Clifford (1991) and Gandy (2009)
+#'   via [adaptive_permutation_pvalue()]. Default is `FALSE` (fixed-`B`
+#'   permutation, byte-identical to previous behaviour).
+#' @param B_max Integer. Hard upper bound on permutations when
+#'   `adaptive = TRUE`. Default is 9999.
+#' @param batch_size Integer. Permutations drawn per adaptive batch.
+#'   Default is 100.
 #' @param seed Integer or `NULL`. Random seed for reproducibility.
+#'
+#' @family tests-base
+#' @seealso [hsic_test()] for independence testing; [bd_hsic_test()],
+#'   [dr_date_test()] for causal versions.
 #'
 #' @return An object of class `"kernel_test_result"` with components:
 #'   \describe{
@@ -20,6 +35,10 @@
 #'     \item{null_distribution}{Vector of permuted MMD^2 values.}
 #'     \item{kernel_x}{Kernel specification used.}
 #'     \item{call}{The matched call.}
+#'     \item{n_perms_used}{(Adaptive only) Number of permutations
+#'       actually drawn.}
+#'     \item{stop_reason}{(Adaptive only) Reason the sequential
+#'       procedure terminated.}
 #'   }
 #'
 #' @references
@@ -45,6 +64,9 @@ mmd_test <- function(x, y,
                      kernel = kernel_spec(),
                      n_permutations = 500L,
                      alpha = 0.05,
+                     adaptive = FALSE,
+                     B_max = 9999L,
+                     batch_size = 100L,
                      seed = NULL) {
   cl <- match.call()
 
@@ -75,6 +97,39 @@ mmd_test <- function(x, y,
 
   # Observed statistic
   stat_obs <- mmd2_unbiased_cpp(Kxx, Kyy, Kxy)
+
+  if (isTRUE(adaptive)) {
+    perm_fun <- function(n_perms) {
+      as.numeric(permutation_mmd_cpp(K_pool, nx, ny, as.integer(n_perms)))
+    }
+    adp <- adaptive_permutation_pvalue(
+      observed = stat_obs,
+      perm_fun = perm_fun,
+      B_min = max(99L, as.integer(batch_size)),
+      B_max = as.integer(B_max),
+      batch_size = as.integer(batch_size),
+      alpha = alpha,
+      seed = NULL
+    )
+    return(structure(
+      list(
+        statistic = stat_obs,
+        p_value = adp$p_value,
+        method = "MMD",
+        n = nx + ny,
+        n_permutations = adp$n_perms_used,
+        null_distribution = adp$null_distribution,
+        ess = NA_real_,
+        weights = NULL,
+        kernel_x = kernel,
+        kernel_y = NULL,
+        n_perms_used = adp$n_perms_used,
+        stop_reason = adp$stop_reason,
+        call = cl
+      ),
+      class = "kernel_test_result"
+    ))
+  }
 
   # Permutation null distribution
   null_dist <- permutation_mmd_cpp(K_pool, nx, ny, n_permutations)

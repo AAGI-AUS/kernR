@@ -69,6 +69,7 @@ by \code{weight_method}. Permutation is performed within clusters to
 preserve the hierarchical structure.
 }
 \examples{
+\donttest{
 set.seed(42)
 n_clusters <- 20
 n_per <- 30
@@ -87,5 +88,11 @@ result <- hierarchical_test(y, t, x, cluster_id,
   seed = 1
 )
 print(result)
+}
 
 }
+\seealso{
+\code{\link[=bd_hsic_test]{bd_hsic_test()}}, \code{\link[=dr_date_test]{dr_date_test()}}, \code{\link[=dr_dett_test]{dr_dett_test()}} for the
+non-hierarchical analogues.
+}
+\concept{tests-hierarchical}

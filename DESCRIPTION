@@ -1,13 +1,13 @@
 Package: kernR
 Title: Kernel-Based Causal Distributional Testing
-Version: 0.0.0.9000
+Version: 0.1.0
 Authors@R: c(
-    person("Max", "Moldovan", , "maksim.pashkevich@adelaide.edu.au",
+    person("Max", "Moldovan", , "max.moldovan@gmail.com",
            role = c("aut", "cre"),
            comment = c(ORCID = "0000-0001-9680-8474")),
     person("Dino", "Sejdinovic", , "dino.sejdinovic@adelaide.edu.au",
            role = "aut",
-           comment = c(ORCID = "0000-0002-1568-7521"))
+           comment = c(ORCID = "0000-0001-5547-9213"))
     )
 Description: Kernel-based hypothesis tests for causal inference and
     distributional treatment effects. Implements backdoor-adjusted HSIC
@@ -29,19 +29,24 @@ LinkingTo:
     Rcpp,
     RcppArmadillo
 Suggests:
+    bench,
     future,
     future.apply,
     ggplot2,
     knitr,
+    lintr,
+    pkgdown,
     ranger,
     rmarkdown,
     testthat (>= 3.0.0),
     vdiffr,
     viridisLite,
+    withr,
     xgboost
 VignetteBuilder: knitr
 Config/testthat/edition: 3
+Config/testthat/parallel: true
 Encoding: UTF-8
-Language: en-GB
+Language: en-AU
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3

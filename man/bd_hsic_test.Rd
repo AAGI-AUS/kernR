@@ -15,6 +15,9 @@ bd_hsic_test(
   n_clusters = "auto",
   split_ratio = 0.5,
   alpha = 0.05,
+  adaptive = FALSE,
+  B_max = 9999L,
+  batch_size = 100L,
   seed = NULL,
   verbose = FALSE
 )
@@ -36,7 +39,7 @@ RBF with median heuristic.}
 \code{"logistic"} (default), \code{"ranger"}, \code{"xgboost"}, or \code{"rulsif"}.}
 
 \item{n_permutations}{Integer. Number of permutations for the null
-distribution. Default is 500.}
+distribution when \code{adaptive = FALSE}. Default is 500.}
 
 \item{n_clusters}{Integer or \code{"auto"}. Number of clusters for valid
 permutation. Default is \code{"auto"}.}
@@ -44,7 +47,20 @@ permutation. Default is \code{"auto"}.}
 \item{split_ratio}{Numeric in (0, 1). Proportion of data for training
 the density ratio estimator. Default is 0.5.}
 
-\item{alpha}{Numeric. Significance level. Default is 0.05.}
+\item{alpha}{Numeric. Significance level. Used both as the reporting
+threshold and, when \code{adaptive = TRUE}, as the early-stopping
+threshold. Default is 0.05.}
+
+\item{adaptive}{Logical. If \code{TRUE}, use the sequential / adaptive
+permutation procedure of Besag & Clifford (1991) and Gandy (2009)
+via \code{\link[=adaptive_permutation_pvalue]{adaptive_permutation_pvalue()}}. Default is \code{FALSE}
+(byte-identical to previous behaviour).}
+
+\item{B_max}{Integer. Hard upper bound on permutations when
+\code{adaptive = TRUE}. Default is 9999.}
+
+\item{batch_size}{Integer. Permutations drawn per adaptive batch.
+Default is 100.}
 
 \item{seed}{Integer or \code{NULL}. Random seed for reproducibility.}
 
@@ -93,3 +109,13 @@ Hu, R., Sejdinovic, D., & Evans, R. J. (2024). A kernel test for
 causal association via noise contrastive backdoor adjustment. \emph{JMLR},
 25(160), 1-56.
 }
+\seealso{
+\code{\link[=hsic_test]{hsic_test()}} (no confounding adjustment),
+\code{\link[=kernel_causal_test]{kernel_causal_test()}} (formula interface).
+
+Other tests-causal: 
+\code{\link{dr_date_test}()},
+\code{\link{dr_dett_test}()},
+\code{\link{kernel_causal_test}()}
+}
+\concept{tests-causal}

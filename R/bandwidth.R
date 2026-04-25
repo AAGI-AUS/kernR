@@ -9,6 +9,9 @@
 #'
 #' @return A positive numeric scalar.
 #'
+#' @family kernels
+#' @seealso [kernel_spec()], [kernel_matrix()].
+#'
 #' @details
 #' - `"median"`: The median heuristic sets bandwidth to the square root
 #'   of the median of pairwise squared distances. Robust default for most

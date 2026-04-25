@@ -17,6 +17,10 @@
 #' @param verbose Logical.
 #' @param ... Additional arguments passed to the underlying test.
 #'
+#' @family tests-hierarchical
+#' @seealso [bd_hsic_test()], [dr_date_test()], [dr_dett_test()] for the
+#'   non-hierarchical analogues.
+#'
 #' @return An object of class `"kernel_test_result"` with additional
 #'   `hierarchical` component containing within/between statistics.
 #'
@@ -36,6 +40,7 @@
 #' preserve the hierarchical structure.
 #'
 #' @examples
+#' \donttest{
 #' set.seed(42)
 #' n_clusters <- 20
 #' n_per <- 30
@@ -54,9 +59,10 @@
 #'   seed = 1
 #' )
 #' print(result)
+#' }
 #'
 #' @export
-hierarchical_test <- function(y, treatment, covariates, cluster_id,
+hierarchical_test <- function(y, treatment, covariates, cluster_id, # nolint: cyclocomp_linter.
                               method = c("dr-date", "dr-dett", "bd-hsic"),
                               kernel_y = kernel_spec(),
                               n_permutations = 500L,
@@ -225,8 +231,7 @@ hierarchical_test <- function(y, treatment, covariates, cluster_id,
     }
 
     perm_avg <- if (sum(!is.na(perm_within)) > 0) {
-      weighted.mean(perm_within[!is.na(perm_within)],
-        within_n[!is.na(perm_within)])
+      weighted.mean(perm_within[!is.na(perm_within)], within_n[!is.na(perm_within)])
     } else {
       0
     }

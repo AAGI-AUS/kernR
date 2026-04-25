@@ -139,6 +139,19 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// nystrom_factor_cpp
+arma::mat nystrom_factor_cpp(const arma::mat& C, const arma::mat& W, double tol);
+RcppExport SEXP _kernR_nystrom_factor_cpp(SEXP CSEXP, SEXP WSEXP, SEXP tolSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type C(CSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type W(WSEXP);
+    Rcpp::traits::input_parameter< double >::type tol(tolSEXP);
+    rcpp_result_gen = Rcpp::wrap(nystrom_factor_cpp(C, W, tol));
+    return rcpp_result_gen;
+END_RCPP
+}
 // permutation_hsic_cpp
 arma::vec permutation_hsic_cpp(const arma::mat& Kx, const arma::mat& Ky, int n_perm);
 RcppExport SEXP _kernR_permutation_hsic_cpp(SEXP KxSEXP, SEXP KySEXP, SEXP n_permSEXP) {
@@ -190,6 +203,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_kernR_polynomial_kernel_matrix_cpp", (DL_FUNC) &_kernR_polynomial_kernel_matrix_cpp, 4},
     {"_kernR_mmd2_unbiased_cpp", (DL_FUNC) &_kernR_mmd2_unbiased_cpp, 3},
     {"_kernR_mmd2_biased_cpp", (DL_FUNC) &_kernR_mmd2_biased_cpp, 3},
+    {"_kernR_nystrom_factor_cpp", (DL_FUNC) &_kernR_nystrom_factor_cpp, 3},
     {"_kernR_permutation_hsic_cpp", (DL_FUNC) &_kernR_permutation_hsic_cpp, 3},
     {"_kernR_permutation_mmd_cpp", (DL_FUNC) &_kernR_permutation_mmd_cpp, 4},
     {"_kernR_stratified_permute_cpp", (DL_FUNC) &_kernR_stratified_permute_cpp, 2},

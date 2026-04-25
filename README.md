@@ -1,7 +1,12 @@
 # kernR
 
 <!-- badges: start -->
+[![R-CMD-check](https://github.com/AAGI-AUS/kernR/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/AAGI-AUS/kernR/actions/workflows/R-CMD-check.yaml)
+[![test-coverage](https://github.com/AAGI-AUS/kernR/actions/workflows/test-coverage.yaml/badge.svg)](https://github.com/AAGI-AUS/kernR/actions/workflows/test-coverage.yaml)
+[![codecov](https://codecov.io/gh/AAGI-AUS/kernR/graph/badge.svg)](https://app.codecov.io/gh/AAGI-AUS/kernR)
+[![lint](https://github.com/AAGI-AUS/kernR/actions/workflows/lint.yaml/badge.svg)](https://github.com/AAGI-AUS/kernR/actions/workflows/lint.yaml)
 [![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 <!-- badges: end -->
 
 **Kernel-Based Causal Distributional Testing for R**
@@ -21,8 +26,9 @@ kernR implements kernel-based hypothesis tests for causal inference and distribu
 ## Installation
 
 ```r
-# Install from GitHub
-remotes::install_github("AAGI-AUS/kernR")
+# Install from GitHub (recommended via pak)
+# install.packages("pak")
+pak::pak("AAGI-AUS/kernR")
 ```
 
 ## Quick Start

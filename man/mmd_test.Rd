@@ -10,6 +10,9 @@ mmd_test(
   kernel = kernel_spec(),
   n_permutations = 500L,
   alpha = 0.05,
+  adaptive = FALSE,
+  B_max = 9999L,
+  batch_size = 100L,
   seed = NULL
 )
 }
@@ -20,9 +23,23 @@ mmd_test(
 
 \item{kernel}{Kernel specification. Default is RBF with median heuristic.}
 
-\item{n_permutations}{Integer. Number of permutations. Default is 500.}
+\item{n_permutations}{Integer. Number of permutations when
+\code{adaptive = FALSE}. Default is 500.}
 
-\item{alpha}{Numeric. Significance level. Default is 0.05.}
+\item{alpha}{Numeric. Significance level. Used both as the reporting
+threshold and, when \code{adaptive = TRUE}, as the early-stopping
+threshold. Default is 0.05.}
+
+\item{adaptive}{Logical. If \code{TRUE}, use the sequential / adaptive
+permutation procedure of Besag & Clifford (1991) and Gandy (2009)
+via \code{\link[=adaptive_permutation_pvalue]{adaptive_permutation_pvalue()}}. Default is \code{FALSE} (fixed-\code{B}
+permutation, byte-identical to previous behaviour).}
+
+\item{B_max}{Integer. Hard upper bound on permutations when
+\code{adaptive = TRUE}. Default is 9999.}
+
+\item{batch_size}{Integer. Permutations drawn per adaptive batch.
+Default is 100.}
 
 \item{seed}{Integer or \code{NULL}. Random seed for reproducibility.}
 }
@@ -37,6 +54,10 @@ An object of class \code{"kernel_test_result"} with components:
 \item{null_distribution}{Vector of permuted MMD^2 values.}
 \item{kernel_x}{Kernel specification used.}
 \item{call}{The matched call.}
+\item{n_perms_used}{(Adaptive only) Number of permutations
+actually drawn.}
+\item{stop_reason}{(Adaptive only) Reason the sequential
+procedure terminated.}
 }
 }
 \description{
@@ -62,3 +83,11 @@ print(result)
 Gretton, A., Borgwardt, K. M., Rasch, M. J., Scholkopf, B., & Smola,
 A. (2012). A kernel two-sample test. \emph{JMLR}, 13, 723-773.
 }
+\seealso{
+\code{\link[=hsic_test]{hsic_test()}} for independence testing; \code{\link[=bd_hsic_test]{bd_hsic_test()}},
+\code{\link[=dr_date_test]{dr_date_test()}} for causal versions.
+
+Other tests-base: 
+\code{\link{hsic_test}()}
+}
+\concept{tests-base}

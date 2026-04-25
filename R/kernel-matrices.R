@@ -6,14 +6,30 @@
 #' @param y Numeric matrix (m x d) or vector. If `NULL` (default),
 #'   computes the kernel matrix of `x` with itself.
 #' @param kernel A `kernel_spec` object. Default is RBF with median
-#'   heuristic bandwidth.
+#'   heuristic bandwidth. If the spec sets `approx = "nystrom"` and the
+#'   call is symmetric (`y` is `NULL`), the matrix is returned via the
+#'   Nystrom approximation; rectangular calls always use exact
+#'   computation.
 #'
 #' @return An n x m numeric matrix.
+#'
+#' @family kernels
+#' @seealso [kernel_spec()], [nystrom_factor()], [rff_features()].
 #'
 #' @examples
 #' x <- matrix(rnorm(100), 50, 2)
 #' K <- kernel_matrix(x)
 #' dim(K)  # 50 x 50
+#'
+#' # Nystrom-approximated symmetric Gram matrix
+#' k_nys <- kernel_spec("rbf", approx = "nystrom", approx_rank = 20, approx_seed = 1)
+#' K_nys <- kernel_matrix(x, kernel = k_nys)
+#' max(abs(K - K_nys))  # small for moderate rank
+#'
+#' # RFF-approximated kernel
+#' k_rff <- kernel_spec("rbf", approx = "rff", approx_rank = 200, approx_seed = 1)
+#' K_rff <- kernel_matrix(x, kernel = k_rff)
+#' max(abs(K - K_rff))
 #'
 #' @export
 kernel_matrix <- function(x, y = NULL, kernel = kernel_spec()) {
@@ -30,14 +46,27 @@ kernel_matrix <- function(x, y = NULL, kernel = kernel_spec()) {
     kernel <- resolve_bandwidth(kernel, if (symmetric) x else rbind(x, y))
   }
 
-  switch(
-    kernel$type,
-    rbf = rbf_kernel_matrix_cpp(x, y, kernel$bandwidth),
-    matern = matern_kernel_matrix_cpp(x, y, kernel$bandwidth, kernel$nu),
-    linear = linear_kernel_matrix_cpp(x, y),
-    polynomial = polynomial_kernel_matrix_cpp(x, y, kernel$degree, kernel$offset),
-    stop("Unknown kernel type: ", kernel$type, call. = FALSE)
-  )
+  approx <- if (is.null(kernel$approx)) "none" else kernel$approx
+  if (approx == "nystrom" && symmetric) {
+    nf <- nystrom_factor(
+      x,
+      kernel = kernel,
+      m = kernel$approx_rank,
+      seed = kernel$approx_seed
+    )
+    return(nystrom_reconstruct(nf))
+  }
+  if (approx == "rff" && symmetric) {
+    rf <- rff_features(
+      x,
+      kernel = kernel,
+      D = kernel$approx_rank,
+      seed = kernel$approx_seed
+    )
+    return(rff_reconstruct(rf))
+  }
+
+  exact_kernel_block(x, y, kernel)
 }
 
 #' Centre a Kernel Matrix

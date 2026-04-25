@@ -78,12 +78,9 @@ the farm-level clustering.
 The test provides both components:
 
 ```{r decomposition}
-cat("Within-cluster average statistic:",
-  mean(result$hierarchical$within_stats, na.rm = TRUE), "\n")
-cat("Between-cluster statistic:",
-  result$hierarchical$between_stat, "\n")
-cat("Combined statistic:",
-  result$statistic, "\n")
+cat("Within-cluster average statistic:", mean(result$hierarchical$within_stats, na.rm = TRUE), "\n")
+cat("Between-cluster statistic:", result$hierarchical$between_stat, "\n")
+cat("Combined statistic:", result$statistic, "\n")
 cat("Weight method:", result$hierarchical$weight_method, "\n")
 ```
 

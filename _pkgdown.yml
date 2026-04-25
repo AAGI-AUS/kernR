@@ -1,0 +1,99 @@
+url: https://aagi-aus.github.io/kernR/
+
+template:
+  bootstrap: 5
+  bslib:
+    primary: "#1F3A5F"
+    base_font: {google: "Source Sans Pro"}
+    heading_font: {google: "Source Sans Pro"}
+    code_font: {google: "JetBrains Mono"}
+
+home:
+  title: "kernR — Kernel-Based Causal Distributional Testing"
+  description: >
+    R package for kernel-based hypothesis tests of causal association
+    and distributional treatment effects, including backdoor-adjusted
+    HSIC and doubly robust kernel statistics, with hierarchical
+    extensions.
+
+navbar:
+  structure:
+    left: [intro, reference, articles, news]
+    right: [search, github]
+  components:
+    intro:
+      text: Get started
+      href: articles/kernR-quickstart.html
+    articles:
+      text: Articles
+      menu:
+        - text: "Foundations"
+        - text: "Theory"
+          href: articles/kernR-theory.html
+        - text: "Quick start"
+          href: articles/kernR-quickstart.html
+        - text: "-------"
+        - text: "Causal tests"
+        - text: "Backdoor-adjusted HSIC"
+          href: articles/kernR-bdhsic.html
+        - text: "DR-DATE / DR-DETT"
+          href: articles/kernR-drtest.html
+        - text: "-------"
+        - text: "Advanced"
+        - text: "Hierarchical / nested data"
+          href: articles/kernR-hierarchical.html
+
+reference:
+  - title: Kernel specification
+    desc: Define the kernel and its hyperparameters.
+    contents:
+      - kernel_spec
+      - kernel_matrix
+      - select_bandwidth
+
+  - title: Low-rank approximations
+    desc: >
+      Opt-in approximations for scaling to larger samples. Both surface
+      through the `approx` argument of `kernel_spec()`; the helper
+      functions expose the cheap factorisation.
+    contents:
+      - nystrom_factor
+      - rff_features
+
+  - title: Two-sample and independence tests
+    desc: Distribution comparison and unconditional independence.
+    contents:
+      - mmd_test
+      - hsic_test
+
+  - title: Causal tests
+    desc: Tests that adjust for measured confounding.
+    contents:
+      - bd_hsic_test
+      - dr_date_test
+      - dr_dett_test
+      - kernel_causal_test
+
+  - title: Hierarchical / clustered data
+    desc: Within / between decomposition for nested observations.
+    contents:
+      - hierarchical_test
+
+  - title: Nuisance models
+    desc: Density ratio and propensity score estimators that the causal tests rely on.
+    contents:
+      - estimate_density_ratio
+      - estimate_propensity
+
+  - title: Diagnostics
+    desc: Sanity checks on overlap and effective sample size.
+    contents:
+      - assess_overlap
+      - plot_weights
+      - effective_sample_size
+
+authors:
+  Max Moldovan:
+    href: https://orcid.org/0000-0001-9680-8474
+  Dino Sejdinovic:
+    href: https://orcid.org/0000-0001-5547-9213

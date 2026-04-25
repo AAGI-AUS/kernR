@@ -5,10 +5,8 @@ using namespace arma;
 
 //' Compute the unbiased MMD^2 statistic
 //'
-//' Unbiased estimator of MMD^2:
-//'   1/(n(n-1)) sum_{i!=j} K_xx(i,j)
-//' + 1/(m(m-1)) sum_{i!=j} K_yy(i,j)
-//' - 2/(nm) sum_{i,j} K_xy(i,j)
+//' Unbiased estimator of \eqn{MMD^2}:
+//' \deqn{\frac{1}{n(n-1)} \sum_{i \neq j} K_{xx}(i,j) + \frac{1}{m(m-1)} \sum_{i \neq j} K_{yy}(i,j) - \frac{2}{nm} \sum_{i,j} K_{xy}(i,j)}
 //'
 //' @param Kxx n x n kernel matrix for sample X.
 //' @param Kyy m x m kernel matrix for sample Y.

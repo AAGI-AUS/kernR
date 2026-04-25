@@ -1,0 +1,48 @@
+name: Bug report
+description: Report a bug, numerical discrepancy, or unexpected behaviour in kernR.
+title: "[bug] "
+labels: [bug, needs-triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report an issue. Please fill in the fields below; minimal reproducible examples make a real difference.
+  - type: input
+    id: pkg-version
+    attributes:
+      label: kernR version
+      description: Output of `packageVersion("kernR")`.
+      placeholder: "0.1.0"
+    validations:
+      required: true
+  - type: input
+    id: r-version
+    attributes:
+      label: R version
+      description: Output of `R.version.string`.
+      placeholder: "R version 4.4.0 (2024-04-24)"
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: Describe the bug
+      description: What did you expect, and what did you observe?
+    validations:
+      required: true
+  - type: textarea
+    id: reprex
+    attributes:
+      label: Reproducible example
+      description: Paste a minimal `reprex` (https://reprex.tidyverse.org/) that reproduces the issue. Use synthetic data where possible.
+      render: r
+    validations:
+      required: true
+  - type: textarea
+    id: session-info
+    attributes:
+      label: Session info
+      description: Output of `sessionInfo()` or `sessioninfo::session_info()`.
+      render: text
+    validations:
+      required: false

@@ -15,6 +15,9 @@ dr_dett_test(
   n_bins = 10L,
   regularisation = "cv",
   alpha = 0.05,
+  adaptive = FALSE,
+  B_max = 9999L,
+  batch_size = 100L,
   seed = NULL,
   verbose = FALSE
 )
@@ -35,7 +38,8 @@ dr_dett_test(
 default) for the conditional mean embedding, or \code{"zero"} to use
 only inverse probability weighting (no outcome regression).}
 
-\item{n_permutations}{Integer. Number of permutations. Default is 500.}
+\item{n_permutations}{Integer. Number of permutations when
+\code{adaptive = FALSE}. Default is 500.}
 
 \item{n_bins}{Integer. Propensity score bins for permutation.
 Default is 10.}
@@ -43,7 +47,20 @@ Default is 10.}
 \item{regularisation}{Numeric or \code{"cv"}. Ridge parameter for the CME.
 Default is \code{"cv"}.}
 
-\item{alpha}{Numeric. Significance level. Default is 0.05.}
+\item{alpha}{Numeric. Significance level. Used both as the reporting
+threshold and, when \code{adaptive = TRUE}, as the early-stopping
+threshold. Default is 0.05.}
+
+\item{adaptive}{Logical. If \code{TRUE}, use the sequential / adaptive
+permutation procedure of Besag & Clifford (1991) and Gandy (2009)
+via \code{\link[=adaptive_permutation_pvalue]{adaptive_permutation_pvalue()}}. Default is \code{FALSE}
+(byte-identical to previous behaviour).}
+
+\item{B_max}{Integer. Hard upper bound on permutations when
+\code{adaptive = TRUE}. Default is 9999.}
+
+\item{batch_size}{Integer. Permutations drawn per adaptive batch.
+Default is 100.}
 
 \item{seed}{Integer or \code{NULL}. Random seed.}
 
@@ -80,3 +97,13 @@ Fawkes, J., Hu, R., Evans, R. J., & Sejdinovic, D. (2024). Doubly
 robust kernel statistics for testing distributional treatment effects.
 \emph{Transactions on Machine Learning Research}.
 }
+\seealso{
+\code{\link[=dr_date_test]{dr_date_test()}} (average treatment effect distribution),
+\code{\link[=kernel_causal_test]{kernel_causal_test()}} (formula interface).
+
+Other tests-causal: 
+\code{\link{bd_hsic_test}()},
+\code{\link{dr_date_test}()},
+\code{\link{kernel_causal_test}()}
+}
+\concept{tests-causal}

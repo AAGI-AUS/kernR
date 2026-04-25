@@ -52,3 +52,11 @@ ps <- estimate_propensity(t, x)
 summary(ps$scores)
 
 }
+\seealso{
+\code{\link[=estimate_density_ratio]{estimate_density_ratio()}}, \code{\link[=dr_date_test]{dr_date_test()}},
+\code{\link[=dr_dett_test]{dr_dett_test()}}, \code{\link[=assess_overlap]{assess_overlap()}}.
+
+Other nuisance: 
+\code{\link{estimate_density_ratio}()}
+}
+\concept{nuisance}

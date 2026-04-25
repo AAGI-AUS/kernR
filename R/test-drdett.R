@@ -8,6 +8,10 @@
 #'
 #' @return An object of class `"kernel_test_result"`.
 #'
+#' @family tests-causal
+#' @seealso [dr_date_test()] (average treatment effect distribution),
+#'   [kernel_causal_test()] (formula interface).
+#'
 #' @details
 #' DR-DETT is analogous to DR-DATE but focuses on the **effect on the
 #' treated** (ETT) rather than the average treatment effect (ATE). It
@@ -39,6 +43,9 @@ dr_dett_test <- function(y, treatment, covariates,
                          n_bins = 10L,
                          regularisation = "cv",
                          alpha = 0.05,
+                         adaptive = FALSE,
+                         B_max = 9999L,
+                         batch_size = 100L,
                          seed = NULL,
                          verbose = FALSE) {
   cl <- match.call()
@@ -69,6 +76,44 @@ dr_dett_test <- function(y, treatment, covariates,
 
   # Compute DR-DETT statistic
   stat_obs <- compute_dr_dett_stat(Ky, treatment, e_hat)
+
+  if (isTRUE(adaptive)) {
+    perm_fun <- function(n_perms) {
+      out <- numeric(n_perms)
+      for (p in seq_len(n_perms)) {
+        t_perm <- bin_permute_treatment(treatment, e_hat, n_bins)
+        out[p] <- compute_dr_dett_stat(Ky, t_perm, e_hat)
+      }
+      out
+    }
+    adp <- adaptive_permutation_pvalue(
+      observed = stat_obs,
+      perm_fun = perm_fun,
+      B_min = max(99L, as.integer(batch_size)),
+      B_max = as.integer(B_max),
+      batch_size = as.integer(batch_size),
+      alpha = alpha,
+      seed = NULL
+    )
+    return(structure(
+      list(
+        statistic = stat_obs,
+        p_value = adp$p_value,
+        method = "DR-DETT",
+        n = n,
+        n_permutations = adp$n_perms_used,
+        null_distribution = adp$null_distribution,
+        ess = NA_real_,
+        weights = e_hat,
+        kernel_x = NULL,
+        kernel_y = kernel_y,
+        n_perms_used = adp$n_perms_used,
+        stop_reason = adp$stop_reason,
+        call = cl
+      ),
+      class = "kernel_test_result"
+    ))
+  }
 
   # Permutation null
   null_dist <- numeric(n_permutations)

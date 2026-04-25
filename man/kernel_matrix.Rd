@@ -13,7 +13,10 @@ kernel_matrix(x, y = NULL, kernel = kernel_spec())
 computes the kernel matrix of \code{x} with itself.}
 
 \item{kernel}{A \code{kernel_spec} object. Default is RBF with median
-heuristic bandwidth.}
+heuristic bandwidth. If the spec sets \code{approx = "nystrom"} and the
+call is symmetric (\code{y} is \code{NULL}), the matrix is returned via the
+Nystrom approximation; rectangular calls always use exact
+computation.}
 }
 \value{
 An n x m numeric matrix.
@@ -26,4 +29,22 @@ x <- matrix(rnorm(100), 50, 2)
 K <- kernel_matrix(x)
 dim(K)  # 50 x 50
 
+# Nystrom-approximated symmetric Gram matrix
+k_nys <- kernel_spec("rbf", approx = "nystrom", approx_rank = 20, approx_seed = 1)
+K_nys <- kernel_matrix(x, kernel = k_nys)
+max(abs(K - K_nys))  # small for moderate rank
+
+# RFF-approximated kernel
+k_rff <- kernel_spec("rbf", approx = "rff", approx_rank = 200, approx_seed = 1)
+K_rff <- kernel_matrix(x, kernel = k_rff)
+max(abs(K - K_rff))
+
 }
+\seealso{
+\code{\link[=kernel_spec]{kernel_spec()}}, \code{\link[=nystrom_factor]{nystrom_factor()}}, \code{\link[=rff_features]{rff_features()}}.
+
+Other kernels: 
+\code{\link{kernel_spec}()},
+\code{\link{select_bandwidth}()}
+}
+\concept{kernels}

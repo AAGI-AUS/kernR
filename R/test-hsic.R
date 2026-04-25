@@ -10,9 +10,23 @@
 #' @param kernel_y Kernel specification for `y`. Default is RBF with
 #'   median heuristic.
 #' @param n_permutations Integer. Number of permutations for the null
-#'   distribution. Default is 500.
-#' @param alpha Numeric. Significance level. Default is 0.05.
+#'   distribution when `adaptive = FALSE`. Default is 500.
+#' @param alpha Numeric. Significance level. Used both as the reporting
+#'   threshold and, when `adaptive = TRUE`, as the early-stopping
+#'   threshold. Default is 0.05.
+#' @param adaptive Logical. If `TRUE`, use the sequential / adaptive
+#'   permutation procedure of Besag & Clifford (1991) and Gandy (2009)
+#'   via [adaptive_permutation_pvalue()]. Default is `FALSE`
+#'   (byte-identical to previous behaviour).
+#' @param B_max Integer. Hard upper bound on permutations when
+#'   `adaptive = TRUE`. Default is 9999.
+#' @param batch_size Integer. Permutations drawn per adaptive batch.
+#'   Default is 100.
 #' @param seed Integer or `NULL`. Random seed for reproducibility.
+#'
+#' @family tests-base
+#' @seealso [mmd_test()] for two-sample testing; [bd_hsic_test()] for the
+#'   causal-association extension.
 #'
 #' @return An object of class `"kernel_test_result"` with components:
 #'   \describe{
@@ -53,6 +67,9 @@ hsic_test <- function(x, y,
                       kernel_y = kernel_spec(),
                       n_permutations = 500L,
                       alpha = 0.05,
+                      adaptive = FALSE,
+                      B_max = 9999L,
+                      batch_size = 100L,
                       seed = NULL) {
   cl <- match.call()
 
@@ -83,6 +100,39 @@ hsic_test <- function(x, y,
 
   # Observed statistic
   stat_obs <- hsic_stat_cpp(Kx, Ky)
+
+  if (isTRUE(adaptive)) {
+    perm_fun <- function(n_perms) {
+      as.numeric(permutation_hsic_cpp(Kx, Ky, as.integer(n_perms)))
+    }
+    adp <- adaptive_permutation_pvalue(
+      observed = stat_obs,
+      perm_fun = perm_fun,
+      B_min = max(99L, as.integer(batch_size)),
+      B_max = as.integer(B_max),
+      batch_size = as.integer(batch_size),
+      alpha = alpha,
+      seed = NULL
+    )
+    return(structure(
+      list(
+        statistic = stat_obs,
+        p_value = adp$p_value,
+        method = "HSIC",
+        n = n,
+        n_permutations = adp$n_perms_used,
+        null_distribution = adp$null_distribution,
+        ess = NA_real_,
+        weights = NULL,
+        kernel_x = kernel_x,
+        kernel_y = kernel_y,
+        n_perms_used = adp$n_perms_used,
+        stop_reason = adp$stop_reason,
+        call = cl
+      ),
+      class = "kernel_test_result"
+    ))
+  }
 
   # Permutation null distribution
   null_dist <- permutation_hsic_cpp(Kx, Ky, n_permutations)

@@ -17,6 +17,6 @@ weighted_hsic_stat_cpp(Kx, Ky, w)
 Scalar weighted HSIC value.
 }
 \description{
-Weighted version: sum_{i,j} w_i * w_j * Kxc_{ij} * Kyc_{ij}
+Weighted version: \eqn{\sum_{i,j} w_i \, w_j \, K_{xc,ij} \, K_{yc,ij}}
 }
 \keyword{internal}

@@ -1,0 +1,36 @@
+name: Feature request
+description: Propose a new feature or enhancement for kernR.
+title: "[feature] "
+labels: [enhancement, needs-triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for proposing a feature. Please describe the problem and the proposed solution; literature pointers and related implementations are welcome.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Describe the gap in kernR's current functionality.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Sketch an API, a method, or a workflow.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+    validations:
+      required: false
+  - type: textarea
+    id: refs
+    attributes:
+      label: References
+      description: Papers, packages, or implementations that inform the proposal.
+    validations:
+      required: false

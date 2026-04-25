@@ -6,6 +6,16 @@
 ^docs$
 ^pkgdown$
 ^\.github$
+^\.lintr$
+^codecov\.yml$
+^codemeta\.json$
+^CITATION\.cff$
+^CONTRIBUTING\.md$
+^SECURITY\.md$
+^CODE_OF_CONDUCT\.md$
+^cran-comments\.md$
+^revdep$
+^audit_.*\.md$
 ^PROJECT_LOG\.md$
 ^CLAUDE\.md$
 ^plan_.*\.md$

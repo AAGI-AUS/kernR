@@ -1,0 +1,63 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+type: software
+title: "kernR: Kernel-Based Causal Distributional Testing"
+version: 0.1.0
+date-released: 2026-04-25
+abstract: >
+  Kernel-based hypothesis tests for causal inference and distributional
+  treatment effects. Implements backdoor-adjusted HSIC (bd-HSIC) for
+  testing causal association, and doubly robust kernel statistics
+  (DR-DATE, DR-DETT) for testing distributional treatment effects beyond
+  mean shifts. Supports binary, continuous, and mixed treatments,
+  hierarchical/nested data structures, and scales to larger datasets via
+  Nystrom approximation and random Fourier features.
+authors:
+  - family-names: Moldovan
+    given-names: Max
+    orcid: "https://orcid.org/0000-0001-9680-8474"
+    email: max.moldovan@gmail.com
+  - family-names: Sejdinovic
+    given-names: Dino
+    orcid: "https://orcid.org/0000-0001-5547-9213"
+    email: dino.sejdinovic@adelaide.edu.au
+license: MIT
+repository-code: "https://github.com/AAGI-AUS/kernR"
+url: "https://github.com/AAGI-AUS/kernR"
+keywords:
+  - causal-inference
+  - kernel-methods
+  - HSIC
+  - MMD
+  - distributional-testing
+  - doubly-robust
+  - R
+references:
+  - type: article
+    authors:
+      - family-names: Hu
+        given-names: Robert
+      - family-names: Sejdinovic
+        given-names: Dino
+      - family-names: Evans
+        given-names: "Robin J."
+    title: "A kernel test for causal association via noise contrastive backdoor adjustment"
+    journal: "Journal of Machine Learning Research"
+    volume: 25
+    issue: 160
+    start: 1
+    end: 56
+    year: 2024
+  - type: article
+    authors:
+      - family-names: Fawkes
+        given-names: Jake
+      - family-names: Hu
+        given-names: Robert
+      - family-names: Evans
+        given-names: "Robin J."
+      - family-names: Sejdinovic
+        given-names: Dino
+    title: "Doubly robust kernel statistics for testing distributional treatment effects"
+    journal: "Transactions on Machine Learning Research"
+    year: 2024

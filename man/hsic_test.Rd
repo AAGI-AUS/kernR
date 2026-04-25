@@ -11,6 +11,9 @@ hsic_test(
   kernel_y = kernel_spec(),
   n_permutations = 500L,
   alpha = 0.05,
+  adaptive = FALSE,
+  B_max = 9999L,
+  batch_size = 100L,
   seed = NULL
 )
 }
@@ -26,9 +29,22 @@ median heuristic.}
 median heuristic.}
 
 \item{n_permutations}{Integer. Number of permutations for the null
-distribution. Default is 500.}
+distribution when \code{adaptive = FALSE}. Default is 500.}
 
-\item{alpha}{Numeric. Significance level. Default is 0.05.}
+\item{alpha}{Numeric. Significance level. Used both as the reporting
+threshold and, when \code{adaptive = TRUE}, as the early-stopping
+threshold. Default is 0.05.}
+
+\item{adaptive}{Logical. If \code{TRUE}, use the sequential / adaptive
+permutation procedure of Besag & Clifford (1991) and Gandy (2009)
+via \code{\link[=adaptive_permutation_pvalue]{adaptive_permutation_pvalue()}}. Default is \code{FALSE}
+(byte-identical to previous behaviour).}
+
+\item{B_max}{Integer. Hard upper bound on permutations when
+\code{adaptive = TRUE}. Default is 9999.}
+
+\item{batch_size}{Integer. Permutations drawn per adaptive batch.
+Default is 100.}
 
 \item{seed}{Integer or \code{NULL}. Random seed for reproducibility.}
 }
@@ -71,3 +87,11 @@ Gretton, A., Fukumizu, K., Teo, C. H., Song, L., Scholkopf, B., &
 Smola, A. J. (2008). A kernel statistical test of independence.
 \emph{NeurIPS}, 20.
 }
+\seealso{
+\code{\link[=mmd_test]{mmd_test()}} for two-sample testing; \code{\link[=bd_hsic_test]{bd_hsic_test()}} for the
+causal-association extension.
+
+Other tests-base: 
+\code{\link{mmd_test}()}
+}
+\concept{tests-base}

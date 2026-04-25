@@ -18,3 +18,18 @@ Invisibly returns \code{weights}.
 Plots the distribution of importance weights with effective sample
 size annotation.
 }
+\examples{
+set.seed(1)
+w <- exp(rnorm(200))
+plot_weights(w)
+
+}
+\seealso{
+\code{\link[=assess_overlap]{assess_overlap()}}, \code{\link[=effective_sample_size]{effective_sample_size()}},
+\code{\link[=estimate_density_ratio]{estimate_density_ratio()}}.
+
+Other diagnostics: 
+\code{\link{assess_overlap}()},
+\code{\link{effective_sample_size}()}
+}
+\concept{diagnostics}

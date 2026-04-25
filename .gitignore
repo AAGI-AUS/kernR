@@ -8,6 +8,9 @@ src/*.o
 src/*.so
 src/*.dll
 src/Makevars.bak
+inst/doc/
+docs/
+revdep/
 
 # R session
 .Rhistory

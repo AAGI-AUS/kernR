@@ -19,7 +19,10 @@ kernel_causal_test(
 \item{method}{Character. Test method: \code{"dr-date"} (default), \code{"dr-dett"},
 or \code{"bd-hsic"}.}
 
-\item{...}{Additional arguments passed to the specific test function.}
+\item{...}{Additional arguments passed to the specific test function.
+This includes the sequential / adaptive permutation controls
+\code{adaptive}, \code{B_max}, and \code{batch_size} — see \code{\link[=dr_date_test]{dr_date_test()}},
+\code{\link[=dr_dett_test]{dr_dett_test()}}, and \code{\link[=bd_hsic_test]{bd_hsic_test()}} for details.}
 }
 \value{
 An object of class \code{"kernel_test_result"}.
@@ -46,3 +49,13 @@ result <- kernel_causal_test(y ~ treatment | x1 + x2,
 print(result)
 
 }
+\seealso{
+\code{\link[=bd_hsic_test]{bd_hsic_test()}}, \code{\link[=dr_date_test]{dr_date_test()}}, \code{\link[=dr_dett_test]{dr_dett_test()}} for the
+underlying tests; the formula syntax dispatches to one of these.
+
+Other tests-causal: 
+\code{\link{bd_hsic_test}()},
+\code{\link{dr_date_test}()},
+\code{\link{dr_dett_test}()}
+}
+\concept{tests-causal}

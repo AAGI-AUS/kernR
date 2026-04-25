@@ -53,6 +53,9 @@ validate_input <- function(x, name = "x", min_n = 1L, min_d = 1L) {
 #'
 #' @return Scalar effective sample size.
 #'
+#' @family diagnostics
+#' @seealso [assess_overlap()], [plot_weights()].
+#'
 #' @examples
 #' w <- runif(100, 0.5, 2)
 #' effective_sample_size(w)

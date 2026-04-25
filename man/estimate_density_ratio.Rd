@@ -48,3 +48,10 @@ dr <- estimate_density_ratio(x, z)
 dr$ess
 
 }
+\seealso{
+\code{\link[=estimate_propensity]{estimate_propensity()}}, \code{\link[=bd_hsic_test]{bd_hsic_test()}}.
+
+Other nuisance: 
+\code{\link{estimate_propensity}()}
+}
+\concept{nuisance}

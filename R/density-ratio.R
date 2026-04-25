@@ -20,6 +20,9 @@
 #'     \item{method}{Method used.}
 #'   }
 #'
+#' @family nuisance
+#' @seealso [estimate_propensity()], [bd_hsic_test()].
+#'
 #' @examples
 #' set.seed(42)
 #' n <- 200

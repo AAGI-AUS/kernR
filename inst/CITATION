@@ -1,0 +1,70 @@
+citHeader("To cite kernR in publications, please use:")
+
+## Read the package version safely. During R CMD check the CITATION file is
+## evaluated before the package is installed, so packageVersion() can fail
+## with "there is no package called 'kernR'". Fall back to reading the
+## DESCRIPTION shipped with the source.
+.kernR_version <- tryCatch(
+  format(utils::packageVersion("kernR")),
+  error = function(e) {
+    desc <- system.file("DESCRIPTION", package = "kernR")
+    if (!nzchar(desc)) desc <- "DESCRIPTION"
+    if (file.exists(desc)) {
+      v <- read.dcf(desc, fields = "Version")[1, 1]
+      if (!is.na(v)) return(v)
+    }
+    "unreleased"
+  }
+)
+
+bibentry(
+  bibtype  = "Manual",
+  title    = "kernR: Kernel-Based Causal Distributional Testing",
+  author   = c(
+    person("Max", "Moldovan", comment = c(ORCID = "0000-0001-9680-8474")),
+    person("Dino", "Sejdinovic", comment = c(ORCID = "0000-0001-5547-9213"))
+  ),
+  year     = format(Sys.Date(), "%Y"),
+  note     = sprintf("R package version %s", .kernR_version),
+  url      = "https://github.com/AAGI-AUS/kernR"
+)
+
+bibentry(
+  bibtype = "Article",
+  key     = "Hu2024bdHSIC",
+  title   = "A kernel test for causal association via noise contrastive backdoor adjustment",
+  author  = c(
+    person("Robert", "Hu"),
+    person("Dino", "Sejdinovic"),
+    person("Robin J.", "Evans")
+  ),
+  journal = "Journal of Machine Learning Research",
+  volume  = "25",
+  number  = "160",
+  pages   = "1--56",
+  year    = "2024",
+  textVersion = paste(
+    "Hu, R., Sejdinovic, D., & Evans, R. J. (2024).",
+    "A kernel test for causal association via noise contrastive backdoor adjustment.",
+    "Journal of Machine Learning Research, 25(160), 1-56."
+  )
+)
+
+bibentry(
+  bibtype = "Article",
+  key     = "Fawkes2024DRDate",
+  title   = "Doubly robust kernel statistics for testing distributional treatment effects",
+  author  = c(
+    person("Jake", "Fawkes"),
+    person("Robert", "Hu"),
+    person("Robin J.", "Evans"),
+    person("Dino", "Sejdinovic")
+  ),
+  journal = "Transactions on Machine Learning Research",
+  year    = "2024",
+  textVersion = paste(
+    "Fawkes, J., Hu, R., Evans, R. J., & Sejdinovic, D. (2024).",
+    "Doubly robust kernel statistics for testing distributional treatment effects.",
+    "Transactions on Machine Learning Research."
+  )
+)

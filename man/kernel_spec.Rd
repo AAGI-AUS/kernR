@@ -9,7 +9,10 @@ kernel_spec(
   bandwidth = "median",
   nu = 2.5,
   degree = 2L,
-  offset = 1
+  offset = 1,
+  approx = c("none", "nystrom", "rff"),
+  approx_rank = NULL,
+  approx_seed = NULL
 )
 }
 \arguments{
@@ -26,6 +29,26 @@ choices: 0.5 (Laplace), 1.5, 2.5, Inf (RBF). Default is 2.5.}
 \item{degree}{Integer. Degree for polynomial kernel. Default is 2.}
 
 \item{offset}{Numeric. Offset for polynomial kernel. Default is 1.}
+
+\item{approx}{Character. Approximation strategy:
+\code{"none"} (default, exact computation), \code{"nystrom"} (low-rank
+Nystrom approximation; symmetric Gram matrices only), or \code{"rff"}
+(Random Fourier Features; translation-invariant kernels only —
+currently \code{"rbf"} and \code{"matern"}, the latter via Student-t spectral
+sampling). The approximation is opt-in: callers must explicitly
+set this argument.}
+
+\item{approx_rank}{Integer or \code{NULL}. For \code{"nystrom"}, number of
+landmark points (m). For \code{"rff"}, number of random frequencies (D);
+the resulting feature map has dimension \code{2 * D} (cos and sin
+blocks), so the approximated kernel has rank at most \code{2 * D}. If
+\code{NULL}, defaults to \code{max(50, ceiling(0.1 * n))}, capped at \code{n}.
+Larger values give a more accurate approximation at the cost of
+compute and memory.}
+
+\item{approx_seed}{Integer or \code{NULL}. Seed for reproducible landmark
+sampling. Set this when you need bitwise-identical Nystrom output
+across runs.}
 }
 \value{
 An object of class \code{"kernel_spec"}.
@@ -33,7 +56,22 @@ An object of class \code{"kernel_spec"}.
 \description{
 Constructs a kernel specification object used throughout \code{kernR} for
 computing kernel matrices. Supports RBF (Gaussian), Matern, linear,
-and polynomial kernels.
+and polynomial kernels, with optional low-rank approximation.
+}
+\details{
+The \code{approx} argument is honoured by \code{\link[=kernel_matrix]{kernel_matrix()}} for symmetric
+Gram matrices (i.e. \code{y} is \code{NULL} or identical to \code{x}); rectangular
+calls always compute the exact block. To compute and retain the
+low-rank factor directly without materialising the n x n matrix,
+use \code{\link[=nystrom_factor]{nystrom_factor()}} or \code{\link[=rff_features]{rff_features()}} depending on the chosen
+approximation.
+
+RFF is restricted to translation-invariant kernels: \code{"rbf"} and
+\code{"matern"}. For Matern with finite smoothness \code{nu}, frequencies are
+drawn from the multivariate Student-t spectral measure with \code{2 * nu}
+degrees of freedom; for \code{nu = Inf} (or RBF), Gaussian frequencies.
+Linear and polynomial kernels are not translation-invariant and will
+error at compute time.
 }
 \examples{
 # Default RBF kernel with median heuristic bandwidth
@@ -48,4 +86,19 @@ k <- kernel_spec("matern", nu = 1.5)
 # Linear kernel (no bandwidth needed)
 k <- kernel_spec("linear")
 
+# Nystrom-approximated RBF kernel with 100 landmarks
+k <- kernel_spec("rbf", approx = "nystrom", approx_rank = 100, approx_seed = 1)
+
+# Random Fourier Features for an RBF kernel with 200 frequencies
+k <- kernel_spec("rbf", approx = "rff", approx_rank = 200, approx_seed = 1)
+
 }
+\seealso{
+\code{\link[=kernel_matrix]{kernel_matrix()}}, \code{\link[=select_bandwidth]{select_bandwidth()}}, \code{\link[=nystrom_factor]{nystrom_factor()}},
+\code{\link[=rff_features]{rff_features()}}.
+
+Other kernels: 
+\code{\link{kernel_matrix}()},
+\code{\link{select_bandwidth}()}
+}
+\concept{kernels}

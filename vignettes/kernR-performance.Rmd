@@ -1,0 +1,268 @@
+---
+title: "Performance: Approximations, Benchmarks, and Tuning Guidance"
+author: "Max Moldovan and Dino Sejdinovic"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Performance: Approximations, Benchmarks, and Tuning Guidance}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 7,
+  fig.height = 4.2,
+  dpi = 150
+)
+```
+
+```{r libs}
+library(kernR)
+```
+
+## 1. Why approximations
+
+The exact kernel matrix is $n \times n$. Forming it and the operations
+that follow scale as $\mathcal{O}(n^2)$ in memory and $\mathcal{O}(n^2 d)$
+in compute (for $d$-dimensional inputs). Past a few thousand
+observations this becomes the binding constraint, particularly when
+permutation inference is layered on top.
+
+kernR exposes two opt-in approximations that target this bottleneck:
+
+- **Nystrom** -- pick $m \ll n$ landmark points, compute the cross block
+  $C \in \mathbb{R}^{n \times m}$ and the inner block
+  $W \in \mathbb{R}^{m \times m}$, and reconstruct
+  $\tilde K = C W^{+} C^{\top}$ via a thresholded eigendecomposition.
+  Returns a low-rank factor $U \in \mathbb{R}^{n \times r}$ ($r \le m$)
+  with $\tilde K = U U^{\top}$.
+
+- **Random Fourier Features (RFF)** -- for translation-invariant
+  kernels (RBF, Matern), Bochner's theorem gives a non-negative
+  spectral measure. Sampling $D$ frequencies from it and forming
+  $(\cos, \sin)$ features yields a $2D$-dimensional explicit feature
+  map $z(x)$ such that $\tilde K(x, x') = z(x)^{\top} z(x')$.
+
+Both surface through a single argument:
+
+```{r api-tour}
+kernel_spec("rbf", approx = "nystrom", approx_rank = 100, approx_seed = 1)
+kernel_spec("rbf", approx = "rff",     approx_rank = 200, approx_seed = 1)
+```
+
+Set `approx_rank = NULL` (the default) and kernR picks
+$\max(50, \lceil 0.1 n \rceil)$, capped at $n$.
+
+## 2. Approximation accuracy versus rank
+
+Holding $n$ fixed, both approximations converge to the exact kernel as
+their rank parameter grows. The error decay rates differ:
+
+```{r accuracy-curve, fig.cap = "Relative Frobenius error of the approximated kernel matrix versus rank, for an RBF kernel with bandwidth = 1 on a 200-row Gaussian sample (d = 4).", fig.alt = "Log-log plot of relative Frobenius error against rank for Nystrom and RFF approximations of an RBF kernel matrix; both curves decrease as rank grows, with Nystrom (filled circles, solid line) decreasing faster than RFF (filled triangles, dashed line)."}
+set.seed(2026)
+n <- 200
+x <- matrix(rnorm(n * 4), n, 4)
+k_exact <- kernel_spec("rbf", bandwidth = 1)
+K <- kernel_matrix(x, kernel = k_exact)
+
+ranks <- c(20, 50, 100, 150, 200, 400, 800)
+relfro <- function(A, B) sqrt(sum((A - B)^2) / sum(A^2))
+
+results <- data.frame(
+  rank = integer(0),
+  method = character(0),
+  rel_error = numeric(0)
+)
+for (r in ranks[ranks <= n]) {
+  k_nys <- kernel_spec("rbf", bandwidth = 1, approx = "nystrom",
+                       approx_rank = r, approx_seed = 1)
+  K_nys <- kernel_matrix(x, kernel = k_nys)
+  results <- rbind(results, data.frame(
+    rank = r, method = "nystrom", rel_error = relfro(K, K_nys)
+  ))
+}
+for (D in ranks) {
+  k_rff <- kernel_spec("rbf", bandwidth = 1, approx = "rff",
+                       approx_rank = D, approx_seed = 1)
+  K_rff <- kernel_matrix(x, kernel = k_rff)
+  results <- rbind(results, data.frame(
+    rank = D, method = "rff", rel_error = relfro(K, K_rff)
+  ))
+}
+
+with(results, plot(
+  rank, rel_error, type = "n",
+  log = "xy", xlab = "rank (m for Nystrom, D for RFF)",
+  ylab = "relative Frobenius error",
+  main = "Approximation accuracy vs rank"
+))
+for (m in unique(results$method)) {
+  sub <- results[results$method == m, ]
+  lines(sub$rank, sub$rel_error, type = "b",
+        pch = if (m == "nystrom") 16 else 17,
+        lty = if (m == "nystrom") 1 else 2,
+        col = if (m == "nystrom") "#1F3A5F" else "#B8420A")
+}
+legend("topright",
+       legend = c("Nystrom", "RFF"),
+       col = c("#1F3A5F", "#B8420A"),
+       pch = c(16, 17), lty = c(1, 2), bty = "n")
+```
+
+Two empirical patterns are visible:
+
+1. **Nystrom converges faster per unit of rank.** Once $m \approx n$
+   the reconstruction is exact up to numerical noise from the
+   thresholded eigendecomposition.
+2. **RFF needs more frequencies.** $D = 200$ is comparable to Nystrom
+   $m \approx 30$ in error terms here. The reason is that RFF's basis
+   is data-agnostic (random frequencies), whereas Nystrom's columns
+   land on actual data points -- so Nystrom captures "where the data
+   is" almost for free.
+
+For practical rules of thumb:
+
+- Pick **Nystrom** when memory permits storing $m$ data points twice
+  and you can spare the $\mathcal{O}(m^3)$ eigendecomposition. Default
+  $m \ge 0.1 n$ is a reasonable starting point.
+- Pick **RFF** when you want a *fixed-dimensional* feature map that is
+  independent of $n$ (e.g. for streaming or out-of-sample evaluation),
+  or when $n$ is so large that storing $n \times m$ is itself a
+  problem.
+
+## 3. Statistic-level parity
+
+Kernel approximations only matter for users to the extent that they
+preserve the *test statistic*. The next chunk shows that for a moderate
+rank both Nystrom and RFF land on the same MMD statistic as the exact
+kernel.
+
+```{r stat-parity}
+set.seed(42)
+n <- 200
+x <- matrix(rnorm(n * 2), n, 2)
+y <- matrix(rnorm(n * 2, mean = 0.4), n, 2)
+
+k_exact <- kernel_spec("rbf")
+k_nys   <- kernel_spec("rbf", approx = "nystrom",
+                       approx_rank = 100, approx_seed = 1)
+k_rff   <- kernel_spec("rbf", approx = "rff",
+                       approx_rank = 1500, approx_seed = 1)
+
+stat_exact <- mmd_test(x, y, kernel = k_exact,
+                       n_permutations = 100L, seed = 1)$statistic
+stat_nys   <- mmd_test(x, y, kernel = k_nys,
+                       n_permutations = 100L, seed = 1)$statistic
+stat_rff   <- mmd_test(x, y, kernel = k_rff,
+                       n_permutations = 100L, seed = 1)$statistic
+
+c(exact = stat_exact, nystrom = stat_nys, rff = stat_rff)
+```
+
+Both approximations sit within a few percent of the exact statistic --
+inside the Monte Carlo noise of the permutation null distribution.
+
+## 4. Wall-clock benchmarks
+
+The point of an approximation is speed. The next benchmark exercises
+the kernel-matrix-formation step at increasing $n$. We hold the
+approximation rank at $0.1 n$ (the default heuristic).
+
+```{r bench-setup}
+maybe_bench <- requireNamespace("bench", quietly = TRUE)
+```
+
+```{r bench-kernel, eval = maybe_bench}
+ns <- c(200, 500, 1000)
+out <- lapply(ns, function(n) {
+  x <- matrix(rnorm(n * 2), n, 2)
+  k_exact <- kernel_spec("rbf")
+  k_nys   <- kernel_spec("rbf", approx = "nystrom",
+                         approx_rank = max(50L, as.integer(0.1 * n)),
+                         approx_seed = 1)
+  k_rff   <- kernel_spec("rbf", approx = "rff",
+                         approx_rank = max(50L, as.integer(0.1 * n)),
+                         approx_seed = 1)
+  bench::mark(
+    exact   = kernel_matrix(x, kernel = k_exact),
+    nystrom = kernel_matrix(x, kernel = k_nys),
+    rff     = kernel_matrix(x, kernel = k_rff),
+    iterations = 5L,
+    check = FALSE,
+    relative = FALSE
+  )[, c("expression", "median", "mem_alloc")]
+})
+names(out) <- paste0("n=", ns)
+out
+```
+
+A full benchmark up to $n = 5000$ is provided as a non-evaluated
+chunk -- run it on your own hardware to gauge the trade-off:
+
+```{r bench-large, eval = FALSE}
+ns_large <- c(2000, 5000)
+for (n in ns_large) {
+  x <- matrix(rnorm(n * 2), n, 2)
+  k_exact <- kernel_spec("rbf")
+  k_nys   <- kernel_spec("rbf", approx = "nystrom",
+                         approx_rank = as.integer(0.1 * n), approx_seed = 1)
+  k_rff   <- kernel_spec("rbf", approx = "rff",
+                         approx_rank = as.integer(0.1 * n), approx_seed = 1)
+  print(n)
+  print(bench::mark(
+    exact   = kernel_matrix(x, kernel = k_exact),
+    nystrom = kernel_matrix(x, kernel = k_nys),
+    rff     = kernel_matrix(x, kernel = k_rff),
+    iterations = 3L, check = FALSE, relative = TRUE
+  ))
+}
+```
+
+## 5. When the approximation does **not** help
+
+Two regimes where the current implementation buys you very little:
+
+1. **Reconstructing the full $n \times n$ matrix.** kernR's
+   `kernel_matrix(approx = ...)` materialises the full Gram matrix to
+   keep the API uniform. The asymptotic speedup of low-rank
+   approximations only realises when downstream code consumes the
+   factor directly. That code path is exposed by [`nystrom_factor()`]
+   and [`rff_features()`]; HSIC / MMD / DR-tests do not yet exploit it.
+2. **Asymmetric calls.** `kernel_matrix(x, y, ...)` with $y \ne x$
+   always falls back to exact computation. Cross-blocks are not
+   well-posed under either Nystrom (which assumes a square Gram block)
+   or RFF without re-aligning random features.
+
+These are limitations of the present cut, not of the underlying
+methods. Both will be revisited in a later release.
+
+## 6. Tuning checklist
+
+When you suspect the kernel matrix is your bottleneck:
+
+1. Time the exact path: `system.time(kernel_matrix(x))`.
+2. Try `approx = "nystrom"` with the default rank. Compare statistics
+   (not p-values) against exact on a small subsample.
+3. If the relative error in the statistic is larger than you can
+   tolerate, double the rank. Stop when the marginal accuracy gain is
+   small.
+4. If memory is binding before compute, switch to `approx = "rff"`:
+   the feature representation is $n \times 2D$ regardless of $n$.
+5. For Matern kernels with small $\nu$ (rough sample paths), prefer
+   Nystrom -- the Student-t spectral measure makes RFF slow to
+   converge for $\nu \le 1$.
+
+## 7. References
+
+Drineas, P., & Mahoney, M. W. (2005). On the Nystrom method for
+approximating a Gram matrix for improved kernel-based learning.
+*Journal of Machine Learning Research*, 6, 2153--2175.
+
+Rahimi, A., & Recht, B. (2007). Random features for large-scale kernel
+machines. *Advances in Neural Information Processing Systems*, 20.
+
+Sutherland, D. J., & Schneider, J. (2015). On the error of random
+Fourier features. *UAI*.

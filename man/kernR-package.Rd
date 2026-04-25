@@ -17,11 +17,11 @@ Useful links:
 
 }
 \author{
-\strong{Maintainer}: Max Moldovan \email{maksim.pashkevich@adelaide.edu.au} (\href{https://orcid.org/0000-0001-9680-8474}{ORCID})
+\strong{Maintainer}: Max Moldovan \email{max.moldovan@gmail.com} (\href{https://orcid.org/0000-0001-9680-8474}{ORCID})
 
 Authors:
 \itemize{
-  \item Dino Sejdinovic \email{dino.sejdinovic@adelaide.edu.au} (\href{https://orcid.org/0000-0002-1568-7521}{ORCID})
+  \item Dino Sejdinovic \email{dino.sejdinovic@adelaide.edu.au} (\href{https://orcid.org/0000-0001-5547-9213}{ORCID})
 }
 
 }

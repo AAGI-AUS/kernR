@@ -1,0 +1,639 @@
+---
+title: "Theory: Kernel Mean Embeddings, Causal Adjustment, and Doubly Robust Tests"
+author: "Max Moldovan and Dino Sejdinovic"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Theory: Kernel Mean Embeddings, Causal Adjustment, and Doubly Robust Tests}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 6,
+  fig.height = 4,
+  dpi = 150
+)
+```
+
+## 1. Introduction
+
+This vignette is the canonical theory reference for **kernR**. It is a
+derivation walk-through, not a presentation of new theory: the goal is
+to make the mathematical machinery underlying every test in the
+package legible to a reader who already knows some statistics but has
+not previously worked with kernel mean embeddings.
+
+We move from the ground up:
+
+1. The reproducing kernel Hilbert space (RKHS) and what it lets us do.
+2. The Maximum Mean Discrepancy (MMD), which compares two distributions
+   by comparing their embeddings.
+3. The Hilbert-Schmidt Independence Criterion (HSIC), which tests
+   independence by embedding the joint distribution and the product
+   of marginals.
+4. The backdoor-adjusted HSIC (bd-HSIC) of Hu, Sejdinovic, and Evans
+   (2024), which extends HSIC to causal association under measured
+   confounding.
+5. Conditional mean embeddings (CMEs) and what they buy us beyond
+   estimating means.
+6. The doubly robust kernel statistics of Fawkes, Hu, Evans, and
+   Sejdinovic (2024) -- DR-DATE and DR-DETT -- for distributional
+   treatment effects.
+7. kernR's hierarchical extension, which lifts these tests to
+   multi-level data with a within/between decomposition and
+   cluster-respecting permutation.
+
+Each section pairs the mathematics with one short, runnable kernR
+example so the reader can see the formulas land in code. We avoid
+computational scalability topics here -- Nystrom approximations and
+random Fourier features are addressed in the *performance* vignette,
+not this one.
+
+Notation. $\mathcal{X}$, $\mathcal{Y}$, $\mathcal{Z}$ are measurable
+spaces. $P, Q$ are probability measures on them. We write
+$X \sim P$ and $X' \sim P$ for independent copies. Lower-case
+$x_1, \ldots, x_n$ denote a sample; upper-case $X$ denotes the random
+variable. $\langle \cdot, \cdot \rangle_{\mathcal{H}}$ is the inner
+product in an RKHS $\mathcal{H}$ and $\| \cdot \|_{\mathcal{H}}$ is
+its norm.
+
+## 2. Reproducing Kernel Hilbert Spaces
+
+A **kernel** $k : \mathcal{X} \times \mathcal{X} \to \mathbb{R}$ is a
+symmetric, positive semi-definite function: for any
+$x_1, \ldots, x_n \in \mathcal{X}$ and $c \in \mathbb{R}^n$,
+$$
+\sum_{i=1}^n \sum_{j=1}^n c_i c_j \, k(x_i, x_j) \ge 0.
+$$
+By the Moore-Aronszajn theorem, every such $k$ corresponds uniquely
+to a Hilbert space of functions $\mathcal{H}_k$ on $\mathcal{X}$,
+called its **reproducing kernel Hilbert space**, satisfying:
+
+- $k(\cdot, x) \in \mathcal{H}_k$ for every $x \in \mathcal{X}$;
+- the **reproducing property**:
+  $f(x) = \langle f, k(\cdot, x) \rangle_{\mathcal{H}_k}$ for all
+  $f \in \mathcal{H}_k$, $x \in \mathcal{X}$.
+
+Define the **canonical feature map** $\phi(x) := k(\cdot, x)$. Then
+$$
+k(x, x') = \langle \phi(x), \phi(x') \rangle_{\mathcal{H}_k},
+$$
+which is the *kernel trick*: an inner product in a potentially
+infinite-dimensional feature space is computed by evaluating the
+kernel.
+
+For most of the package we use the **radial basis function (RBF)**
+kernel,
+$$
+k_\sigma(x, x') = \exp\!\left(-\frac{\|x - x'\|^2}{2 \sigma^2}\right),
+$$
+with bandwidth $\sigma > 0$. The RBF kernel is **characteristic** on
+$\mathbb{R}^d$: the map $P \mapsto \mathbb{E}_{X \sim P} \phi(X)$ from
+probability measures to $\mathcal{H}_k$ is injective. Two distributions
+have the same mean embedding if and only if they are equal. Without
+this property, the tests we develop below would be unable to distinguish
+some pairs of distributions and would silently lose power.
+
+kernR exposes the kernel as a first-class object via `kernel_spec()`.
+Bandwidth selection defaults to the **median heuristic**, $\sigma =
+\mathrm{median}(\|x_i - x_j\|)$, which is robust and rarely wrong by
+much. Other supported families are Matern (smoothness controlled by
+$\nu$), linear, and polynomial.
+
+```{r rkhs-demo}
+library(kernR)
+
+set.seed(2026)
+x <- matrix(rnorm(20), 10, 2)
+
+# Default RBF with median heuristic
+k <- kernel_spec()
+K <- kernel_matrix(x, kernel = k)
+
+# Symmetry and PSD
+all.equal(K, t(K))
+ev <- eigen(K, symmetric = TRUE, only.values = TRUE)$values
+all(ev > -1e-8)
+round(range(ev), 4)
+```
+
+The Gram matrix is symmetric and (numerically) PSD, as it must be.
+
+## 3. Maximum Mean Discrepancy (MMD)
+
+Suppose we have samples from two distributions $P$ on $\mathcal{X}$
+and $Q$ on $\mathcal{X}$ and want to test $H_0 : P = Q$. The
+**kernel mean embedding** of $P$ in $\mathcal{H}_k$ is
+$$
+\mu_P := \mathbb{E}_{X \sim P}[\phi(X)] = \mathbb{E}_{X \sim P}[k(\cdot, X)].
+$$
+The Maximum Mean Discrepancy is the distance between embeddings,
+$$
+\mathrm{MMD}(P, Q; \mathcal{H}_k) = \| \mu_P - \mu_Q \|_{\mathcal{H}_k}.
+$$
+Squaring and using bilinearity of the inner product gives the form
+that drives all sample estimators:
+$$
+\mathrm{MMD}^2(P, Q) = \mathbb{E}[k(X, X')] + \mathbb{E}[k(Y, Y')]
+  - 2\, \mathbb{E}[k(X, Y)],
+$$
+with $X, X' \overset{\text{iid}}{\sim} P$,
+$Y, Y' \overset{\text{iid}}{\sim} Q$, all four independent.
+
+When $k$ is characteristic, $\mathrm{MMD}^2(P, Q) = 0 \iff P = Q$
+(Gretton et al., 2012). The squared MMD therefore behaves as a proper
+divergence between distributions on $\mathcal{H}_k$.
+
+### 3.1 Sample estimators
+
+Given $x_1, \ldots, x_m \sim P$ and $y_1, \ldots, y_n \sim Q$, write
+$K^{xx}_{ij} = k(x_i, x_j)$, $K^{yy}_{ij} = k(y_i, y_j)$,
+$K^{xy}_{ij} = k(x_i, y_j)$. The **biased V-statistic** is
+$$
+\widehat{\mathrm{MMD}}^2_b
+  = \frac{1}{m^2}\sum_{i,j} K^{xx}_{ij}
+  + \frac{1}{n^2}\sum_{i,j} K^{yy}_{ij}
+  - \frac{2}{mn}\sum_{i,j} K^{xy}_{ij},
+$$
+which includes the diagonal terms ($i = j$). The **unbiased
+U-statistic** removes them:
+$$
+\widehat{\mathrm{MMD}}^2_u
+  = \frac{1}{m(m-1)}\sum_{i \ne j} K^{xx}_{ij}
+  + \frac{1}{n(n-1)}\sum_{i \ne j} K^{yy}_{ij}
+  - \frac{2}{mn}\sum_{i,j} K^{xy}_{ij}.
+$$
+The unbiased form is preferred for inference because its expectation
+under $H_0$ is exactly zero. Under $H_0$, both estimators are
+degenerate U/V-statistics whose limiting distributions are mixtures
+of $\chi^2_1$ variables; closed-form thresholds exist but are awkward
+in practice. kernR uses **permutation inference** instead -- shuffle
+the pooled labels, recompute the statistic, and compare to the
+observed value.
+
+```{r mmd-demo}
+set.seed(7)
+m <- n <- 100
+
+# Same distribution: MMD should be small
+x <- matrix(rnorm(m * 2), m, 2)
+y <- matrix(rnorm(n * 2), n, 2)
+res_null <- mmd_test(x, y, n_permutations = 200, seed = 1)
+res_null
+
+# Mean shift: MMD should be large
+y_shift <- matrix(rnorm(n * 2, mean = 0.5), n, 2)
+res_alt <- mmd_test(x, y_shift, n_permutations = 200, seed = 1)
+res_alt
+```
+
+The first p-value is large; the second is small. This is the basic
+two-sample test. Everything that follows builds on it.
+
+## 4. Hilbert-Schmidt Independence Criterion (HSIC)
+
+To test independence of $X$ and $Y$ -- $H_0 : P_{XY} = P_X \otimes P_Y$
+-- we apply the same idea to the joint and product distributions on
+$\mathcal{X} \times \mathcal{Y}$. With kernels $k$ on $\mathcal{X}$
+and $\ell$ on $\mathcal{Y}$, the product kernel is
+$k((x_1, y_1), (x_2, y_2)) = k(x_1, x_2) \ell(y_1, y_2)$, and
+$$
+\mathrm{HSIC}(X, Y; k, \ell)
+  = \big\| \mu_{P_{XY}} - \mu_{P_X \otimes P_Y} \big\|^2_{\mathcal{H}_k \otimes \mathcal{H}_\ell}.
+$$
+Equivalently, HSIC is the squared Hilbert-Schmidt norm of the
+cross-covariance operator $C_{XY} : \mathcal{H}_\ell \to \mathcal{H}_k$
+defined by
+$$
+\langle f, C_{XY} g \rangle_{\mathcal{H}_k}
+  = \mathrm{Cov}\!\big(f(X), g(Y)\big),
+\qquad f \in \mathcal{H}_k, \; g \in \mathcal{H}_\ell,
+$$
+giving the population identity
+$$
+\mathrm{HSIC}(X, Y) = \| C_{XY} \|_{\mathrm{HS}}^2.
+$$
+When $k$ and $\ell$ are characteristic (equivalently, when the product
+kernel is characteristic on $\mathcal{X} \times \mathcal{Y}$),
+$\mathrm{HSIC}(X, Y) = 0 \iff X \perp Y$ (Gretton et al., 2005). This
+is what makes HSIC a *non-linear* independence test: it sees any
+dependence detectable through the chosen RKHS, not just linear
+correlation.
+
+### 4.1 Sample formula via centring
+
+Given $\{(x_i, y_i)\}_{i=1}^n$, form Gram matrices $K, L \in
+\mathbb{R}^{n \times n}$ with $K_{ij} = k(x_i, x_j)$, $L_{ij} = \ell(y_i, y_j)$,
+and the centring matrix
+$$
+H = I_n - \tfrac{1}{n} \mathbf{1}_n \mathbf{1}_n^\top,
+$$
+which projects onto the orthogonal complement of the constant
+direction. The biased V-statistic estimator is
+$$
+\widehat{\mathrm{HSIC}}(X, Y) = \frac{1}{n^2}\,\mathrm{tr}(K H L H).
+$$
+The trick is that $K H L H$ pre- and post-multiplies by the
+centring matrix, which is exactly the operation that subtracts row
+and column means from $K$ and $L$. Because trace is invariant under
+cyclic permutation, an equivalent and slightly cheaper form is
+$\mathrm{tr}((HKH)(HLH)) / n^2$. An unbiased U-statistic version
+exists (Song et al., 2012) and is also implemented; the choice
+rarely matters under permutation inference because the null
+distribution is generated by relabelling, not by appeal to a
+limiting distribution.
+
+```{r hsic-derivation}
+set.seed(11)
+n <- 200
+xv <- rnorm(n)
+yv <- xv^2 + rnorm(n, sd = 0.3)   # nonlinear, zero linear correlation
+
+# Manual HSIC from first principles
+K <- kernel_matrix(xv)
+L <- kernel_matrix(yv)
+H <- diag(n) - matrix(1 / n, n, n)
+hsic_manual <- sum(diag(K %*% H %*% L %*% H)) / n^2
+hsic_manual
+
+# kernR's test recovers the same statistic and adds a permutation p-value
+res_hsic <- hsic_test(xv, yv, n_permutations = 200, seed = 1)
+res_hsic
+round(c(manual = hsic_manual, package = res_hsic$statistic), 6)
+cat("Pearson correlation: ", round(cor(xv, yv), 3), "\n")
+```
+
+The manual calculation matches `hsic_test()` to numerical precision,
+even though the Pearson correlation is essentially zero. That is
+exactly the case HSIC is designed for.
+
+## 5. Backdoor-Adjusted HSIC (bd-HSIC)
+
+HSIC tests *associational* independence. Suppose instead we want a
+**causal** statement -- "does intervening on $X$ change the
+distribution of $Y$?" -- and we have measured confounders
+$Z$ that satisfy Pearl's backdoor criterion (Pearl, 2009): every
+back-door path from $X$ to $Y$ is blocked by $Z$, and $Z$ contains
+no descendants of $X$.
+
+Under that DAG assumption, the interventional distribution factorises
+as
+$$
+p\!\big(y \mid \mathrm{do}(x)\big)
+  = \int p(y \mid x, z)\, p(z)\, dz,
+$$
+which is **not** the conditional $p(y \mid x)$ used by naive HSIC.
+The two coincide only when $X \perp Z$, i.e., when there is no
+confounding to begin with.
+
+Hu, Sejdinovic, and Evans (2024) note that the do-null hypothesis
+$$
+H_0 :\; p\!\big(y \mid \mathrm{do}(x)\big) = p^*(y) \quad \text{for all } x,
+$$
+where $p^*(y) := \int p(y \mid x, z)\, p(z)\, p(x)\, dz\, dx$ is
+the marginal interventional outcome distribution, is equivalent to a
+weighted independence statement on the observational distribution:
+$$
+\mathrm{HSIC}_w(X, Y) := \big\| C_{XY}^w \big\|_{\mathrm{HS}}^2 = 0,
+$$
+with weights
+$$
+w(x, z) = \frac{p(x)}{p(x \mid z)},
+$$
+the inverse of the conditional density of $X$ given $Z$ relative to
+the marginal. Intuitively: reweighting observational $(X, Y, Z)$
+samples by $w(x, z)$ breaks the dependence between $X$ and $Z$,
+which is precisely what intervention does.
+
+### 5.1 Estimating the density ratio by NCE
+
+The weight $w$ is a ratio of densities and is hard to estimate by
+plug-in. Hu et al. recast it as a binary classification problem
+known as **noise contrastive estimation** (NCE) or *density ratio
+by classification*. Form a labelled dataset:
+
+- positives ($u = 1$): observed $(x_i, z_i)$ pairs from $p(x, z)$;
+- negatives ($u = 0$): synthetic pairs $(x'_j, z_j)$ where $x'_j$ is
+  drawn from the marginal $p(x)$ independently of $z_j$, so
+  $(x'_j, z_j) \sim p(x) p(z)$.
+
+A classifier $\widehat{r}(x, z) = \Pr(u = 1 \mid x, z)$ trained on this
+mixture yields a density ratio via
+$$
+\frac{p(x, z)}{p(x) p(z)}
+  = \frac{p(x \mid z)}{p(x)}
+  = \frac{\widehat{r}(x, z)}{1 - \widehat{r}(x, z)},
+$$
+so that the bd-HSIC weight is its reciprocal,
+$$
+\widehat{w}(x, z) = \frac{1 - \widehat{r}(x, z)}{\widehat{r}(x, z)}.
+$$
+Logistic regression (`density_ratio = "logistic"`), random forests
+(`"ranger"`), or gradient boosting (`"xgboost"`) are all valid
+classifiers; choice depends on the smoothness, dimension, and
+sample size. `"rulsif"` (Yamada et al., 2013) provides an
+alternative direct-fitting estimator that is more robust under
+limited overlap.
+
+### 5.2 Weighted HSIC and cluster permutation
+
+The sample bd-HSIC plugs the weights into a centred, weighted
+trace:
+$$
+\widehat{\mathrm{HSIC}}_w(X, Y)
+  = \frac{1}{n^2} \mathrm{tr}(W K H L H),
+$$
+where $W = \mathrm{diag}(w_1, \ldots, w_n)$ with $w_i =
+\widehat{w}(x_i, z_i)$. (Several equivalent symmetric forms exist;
+the package uses one that preserves PSD-ness for the permutation
+mechanism.)
+
+Inference is by **cluster-based permutation**. Naively shuffling $Y$
+breaks not only the $X$-$Y$ link but also the $Z$-$Y$ link, which
+inflates Type I error under confounding. Instead, kernR clusters
+observations into groups with similar conditional densities
+$p(x \mid z)$ -- typically by binning $\widehat{r}(x, z)$ -- and
+permutes $Y$ only *within* clusters. This preserves the confounding
+structure while breaking causal association, yielding a calibrated
+null.
+
+```{r bdhsic-demo}
+set.seed(13)
+n <- 250
+zv <- matrix(rnorm(n * 2), n, 2)
+xv <- 0.5 * zv[, 1] + rnorm(n)            # X depends on Z
+yv <- 0.5 * zv[, 1] + zv[, 2] + rnorm(n)  # Y depends on Z, NOT on X
+
+# Naive HSIC sees confounded association
+res_naive <- hsic_test(xv, yv, n_permutations = 200, seed = 1)
+cat("Naive HSIC p-value (confounding only):", round(res_naive$p_value, 3), "\n")
+
+# bd-HSIC correctly reports no causal effect
+res_bd <- bd_hsic_test(xv, yv, zv, n_permutations = 200, seed = 1)
+res_bd
+```
+
+The naive HSIC mislabels confounded association as causal; bd-HSIC
+correctly fails to reject. This is the central benefit of the
+backdoor adjustment.
+
+## 6. Conditional Mean Embeddings and Distributional Effects
+
+Mean embeddings $\mu_P$ are unconditional. To talk about treatment
+effects on the *distribution* of $Y$ given covariates $X$, we need
+the **conditional mean embedding** (Song, Huang, Smola, & Fukumizu,
+2009):
+$$
+\mu_{Y \mid X = x} := \mathbb{E}\!\big[\phi(Y) \mid X = x\big].
+$$
+The CME is a function $x \mapsto \mu_{Y \mid X = x}$ valued in
+$\mathcal{H}_\ell$. Under standard regularity, it is the solution
+to a kernel ridge regression of $\phi(Y)$ on $\phi(X)$:
+$$
+\widehat{\mu}_{Y \mid X = x}
+  = \mathbf{l}(\cdot)^\top (K_X + n \lambda I)^{-1} \mathbf{k}_X(x),
+$$
+where $\mathbf{k}_X(x)$ is the $n$-vector of $k(x_i, x)$, $K_X$ is
+the Gram matrix on $\{x_i\}$, $\mathbf{l}(\cdot) = (\ell(\cdot, y_1),
+\ldots, \ell(\cdot, y_n))^\top$, and $\lambda > 0$ is a ridge
+parameter.
+
+CMEs let us encode the *distribution* of potential outcomes
+$Y(t) \mid X$ as a function of $X$, then test or contrast those
+distributions in a Hilbert space. Crucially, distributional effects
+include changes in variance, skewness, modality, or tail
+behaviour -- not just the mean. Standard causal estimators (Double
+ML, TMLE) target the mean and have no power against pure variance
+or shape effects.
+
+```{r cme-intuition}
+set.seed(17)
+n <- 400
+tt <- rbinom(n, 1, 0.5)
+# Identical mean, doubled variance under treatment
+yv <- ifelse(tt == 1, rnorm(n, 0, 2), rnorm(n, 0, 1))
+c(mean_diff = mean(yv[tt == 1]) - mean(yv[tt == 0]),
+  sd_treated = sd(yv[tt == 1]),
+  sd_control = sd(yv[tt == 0]))
+
+# MMD picks up the distributional difference even though means coincide
+res <- mmd_test(yv[tt == 1], yv[tt == 0], n_permutations = 200, seed = 1)
+res$p_value
+```
+
+Means agree; the distributions do not; MMD detects the difference.
+This is the regime DR-DATE and DR-DETT formalise causally.
+
+## 7. Doubly Robust Distributional Tests
+
+Fawkes, Hu, Evans, and Sejdinovic (2024) construct distributional
+analogues of doubly robust ATE estimators. The setting is the
+standard binary-treatment causal model: treatment $T \in \{0, 1\}$,
+covariates $X$, outcome $Y$, with potential outcomes $Y(0)$ and
+$Y(1)$, observed outcome $Y = T \cdot Y(1) + (1-T) \cdot Y(0)$, and
+the usual identification assumptions:
+
+- **unconfoundedness**: $\{Y(0), Y(1)\} \perp T \mid X$;
+- **overlap**: $0 < e(x) := \Pr(T = 1 \mid X = x) < 1$;
+- **SUTVA**.
+
+We want to test $H_0 : P_{Y(1)} = P_{Y(0)}$ (DR-DATE) or, more
+modestly, $H_0 : P_{Y(1) \mid T = 1} = P_{Y(0) \mid T = 1}$ (DR-DETT).
+
+### 7.1 Building blocks
+
+Two nuisance models are required:
+
+- a **propensity** model $\widehat{e}(x)$ for $\Pr(T = 1 \mid X = x)$
+  (logistic, ranger, or xgboost, with **cross-fitting** to avoid
+  bias from in-sample reuse);
+- an **outcome embedding** model
+  $\widehat{m}_t(x) = \widehat{\mu}_{Y \mid X = x, T = t}$, the
+  CME of $Y$ given $X$ within each treatment arm.
+
+### 7.2 The DR-DATE statistic
+
+Let $\widehat{m}_1$ and $\widehat{m}_0$ be the fitted CMEs under
+treatment and control. The doubly robust estimator of $\mu_{Y(t)}$ is
+$$
+\widehat{\mu}_{Y(1)}
+  = \frac{1}{n} \sum_{i=1}^n \left[
+    \frac{T_i}{\widehat{e}(X_i)}\big(\phi(Y_i) - \widehat{m}_1(X_i)\big)
+    + \widehat{m}_1(X_i)
+  \right],
+$$
+and symmetrically for $\widehat{\mu}_{Y(0)}$ with $T \to 1 - T$ and
+$\widehat{e} \to 1 - \widehat{e}$. The DR-DATE statistic is
+$$
+\widehat{T}_{\text{DR-DATE}}
+  = \big\| \widehat{\mu}_{Y(1)} - \widehat{\mu}_{Y(0)} \big\|_{\mathcal{H}_\ell}^2,
+$$
+i.e., a squared MMD between two doubly robust embedding estimators.
+
+### 7.3 Why double robustness
+
+Each summand has the **augmented inverse-probability-weighted (AIPW)**
+form. Standard AIPW algebra extends to embeddings: the estimator is
+consistent for the true $\mu_{Y(t)}$ if either
+
+- $\widehat{e}$ is consistent for the propensity, **or**
+- $\widehat{m}_t$ is consistent for the conditional mean embedding,
+
+without requiring both. A misspecification in one nuisance is absorbed
+provided the other is correct. Asymptotic normality (in $\mathcal{H}_\ell$)
+holds under cross-fitting at typical sub-parametric rates, with the
+familiar product-rate condition: the rate of $\|\widehat{\mu}_{Y(t)} -
+\mu_{Y(t)}\|$ is governed by the product of nuisance estimation
+errors. Permutation tests under a calibrated **bin-based** permutation
+(stratifying by propensity quantiles, mirroring the cluster
+permutation of bd-HSIC) recover correct Type I error in finite
+samples.
+
+### 7.4 DR-DETT: effect on the treated
+
+DR-DETT targets the treated subpopulation, requiring only one-sided
+overlap ($e(x) < 1$ on the support of treated units). The construction
+uses
+$$
+\widehat{\mu}_{Y(0) \mid T = 1}
+  = \frac{1}{n_1} \sum_{i : T_i = 1}
+    \widehat{m}_0(X_i)
+    + \frac{1}{n_1} \sum_{i : T_i = 0}
+    \frac{\widehat{e}(X_i)}{1 - \widehat{e}(X_i)}
+    \big(\phi(Y_i) - \widehat{m}_0(X_i)\big),
+$$
+which is the embedding analogue of the standard DETT/ATT influence
+function. The treated arm contributes $\phi(Y_i)$ directly; control
+units are upweighted by the odds ratio $e/(1-e)$ to estimate the
+counterfactual outcome embedding under no treatment.
+
+```{r drdate-demo}
+set.seed(19)
+n <- 300
+xv <- matrix(rnorm(n * 2), n, 2)
+tv <- rbinom(n, 1, plogis(0.3 * xv[, 1]))
+# Variance effect only -- mean shift is essentially zero
+yv <- (1 - tv) * rnorm(n, 0, 1) + tv * rnorm(n, 0, 2.5) + 0.4 * xv[, 1]
+
+res_date <- dr_date_test(yv, tv, xv,
+  propensity_model = "logistic",
+  outcome_model = "krr",
+  n_permutations = 150,
+  seed = 1
+)
+res_date
+```
+
+DR-DATE detects a distributional difference even when the mean is
+unchanged -- a test that mean-targeted estimators cannot construct
+without ad-hoc transformations.
+
+## 8. Hierarchical Extension
+
+Real applications -- patients within hospitals, plots within fields,
+students within schools -- violate the i.i.d. assumption underlying
+all the tests above. Two failure modes appear:
+
+1. **Inflated Type I error.** Permuting individuals across clusters
+   ignores within-cluster dependence; the permutation null
+   distribution becomes too narrow.
+2. **Confounded between-cluster comparisons.** Differences between
+   clusters can drive a "treatment effect" that, conditional on the
+   cluster, is absent.
+
+kernR's `hierarchical_test()` decomposes the kernel statistic into
+a within-cluster and a between-cluster contribution and tests
+each in isolation, then combines them with a configurable
+weighting. Concretely, for a kernel statistic $S$ on data
+$\{(x_{cj}, y_{cj}) : c = 1, \ldots, C, j = 1, \ldots, n_c\}$ with
+cluster id $c$, write
+$$
+S_{\text{total}}
+  = S_{\text{within}} + S_{\text{between}},
+$$
+mirroring the variance decomposition implicit in random-effects
+models. The intra-class correlation
+$$
+\rho = \frac{\sigma^2_{\text{between}}}{\sigma^2_{\text{between}} + \sigma^2_{\text{within}}}
+$$
+is estimated and used to set weights when `weight_method = "icc"`,
+following the principle that high-$\rho$ data should down-weight
+within-cluster signal (which is dominated by cluster-mean variation).
+`weight_method = "equal"` and `weight_method = "within_only"` provide
+explicit alternatives -- the latter is appropriate when betweens
+are known to be confounded.
+
+The permutation engine is **cluster-respecting**: under the
+null, we permute *cluster labels* (between-cluster permutation) or
+*outcomes within clusters* (within-cluster permutation), never
+across clusters. This preserves the dependence structure that
+generated the data.
+
+```{r hierarchical-demo, eval = FALSE}
+# Marked eval = FALSE only because hierarchical permutation is the
+# heaviest path; the call shape is correct and stable.
+set.seed(23)
+C <- 20            # clusters
+nc <- 15           # individuals per cluster
+n <- C * nc
+cluster_id <- rep(seq_len(C), each = nc)
+u <- rnorm(C, sd = 0.7)[cluster_id]   # cluster random effect
+xv <- matrix(rnorm(n * 2), n, 2)
+tv <- rbinom(n, 1, plogis(0.3 * xv[, 1] + u))
+yv <- 0.6 * tv + 0.4 * xv[, 1] + u + rnorm(n)
+
+res_h <- hierarchical_test(
+  y = yv, treatment = tv, covariates = xv,
+  cluster_id = cluster_id,
+  method = "dr-date",
+  weight_method = "icc",
+  n_permutations = 200, seed = 1
+)
+res_h
+```
+
+This recovers the validity of distributional tests under the
+multi-level structure that pervades health, agriculture, and
+educational data.
+
+## 9. References
+
+Fawkes, J., Hu, R., Evans, R. J., & Sejdinovic, D. (2024). Doubly
+robust kernel statistics for testing distributional treatment
+effects. *Transactions on Machine Learning Research*.
+
+Gretton, A., Borgwardt, K. M., Rasch, M. J., Schölkopf, B., & Smola,
+A. (2012). A kernel two-sample test. *Journal of Machine Learning
+Research*, *13*, 723-773.
+
+Gretton, A., Bousquet, O., Smola, A., & Schölkopf, B. (2005).
+Measuring statistical dependence with Hilbert-Schmidt norms. In
+*Algorithmic Learning Theory* (pp. 63-77). Springer.
+
+Hu, R., Sejdinovic, D., & Evans, R. J. (2024). A kernel test for
+causal association via noise contrastive backdoor adjustment.
+*Journal of Machine Learning Research*, *25*(160), 1-56.
+
+Pearl, J. (2009). *Causality: Models, reasoning, and inference*
+(2nd ed.). Cambridge University Press.
+
+Song, L., Huang, J., Smola, A., & Fukumizu, K. (2009). Hilbert
+space embeddings of conditional distributions with applications to
+dynamical systems. In *Proceedings of the 26th International
+Conference on Machine Learning* (pp. 961-968).
+
+Song, L., Smola, A., Gretton, A., Bedo, J., & Borgwardt, K. (2012).
+Feature selection via dependence maximization. *Journal of Machine
+Learning Research*, *13*, 1393-1434.
+
+Yamada, M., Suzuki, T., Kanamori, T., Hachiya, H., & Sugiyama, M.
+(2013). Relative density-ratio estimation for robust distribution
+comparison. *Neural Computation*, *25*(5), 1324-1370.
+
+```{r session-info}
+sessionInfo()
+```

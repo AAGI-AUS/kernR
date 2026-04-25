@@ -14,6 +14,17 @@
 #'     \item{overlap_warning}{Logical. TRUE if overlap is poor.}
 #'   }
 #'
+#' @family diagnostics
+#' @seealso [estimate_propensity()], [plot_weights()],
+#'   [effective_sample_size()].
+#'
+#' @examples
+#' set.seed(1)
+#' x <- matrix(rnorm(200), 100, 2)
+#' t <- rbinom(100, 1, plogis(0.5 * x[, 1]))
+#' ps <- estimate_propensity(t, x, method = "logistic")
+#' assess_overlap(ps, t)
+#'
 #' @export
 assess_overlap <- function(propensity, treatment = NULL) {
   if (inherits(propensity, "propensity_fit")) {
@@ -61,14 +72,16 @@ assess_overlap <- function(propensity, treatment = NULL) {
 #' @export
 print.overlap_diagnostic <- function(x, ...) {
   cat("Propensity Score Overlap Diagnostic\n\n")
-  cat("Treated:  ", paste(names(x$treated), "=",
-    formatC(x$treated, digits = 3, format = "f"),
-    collapse = ", "
-  ), "\n")
-  cat("Control:  ", paste(names(x$control), "=",
-    formatC(x$control, digits = 3, format = "f"),
-    collapse = ", "
-  ), "\n")
+  cat(
+    "Treated:  ",
+    paste(names(x$treated), "=", formatC(x$treated, digits = 3, format = "f"), collapse = ", "),
+    "\n"
+  )
+  cat(
+    "Control:  ",
+    paste(names(x$control), "=", formatC(x$control, digits = 3, format = "f"), collapse = ", "),
+    "\n"
+  )
   cat("Overlap:  ", formatC(x$overlap_fraction * 100, digits = 1, format = "f"), "%\n")
   if (x$overlap_warning) {
     cat("WARNING: Poor overlap detected. Consider using DETT (requires only one-sided overlap).\n")
@@ -85,6 +98,16 @@ print.overlap_diagnostic <- function(x, ...) {
 #' @param main Title. Default is "Weight Distribution".
 #'
 #' @return Invisibly returns `weights`.
+#'
+#' @family diagnostics
+#' @seealso [assess_overlap()], [effective_sample_size()],
+#'   [estimate_density_ratio()].
+#'
+#' @examples
+#' set.seed(1)
+#' w <- exp(rnorm(200))
+#' plot_weights(w)
+#'
 #' @export
 plot_weights <- function(weights, main = "Weight Distribution") {
   ess <- effective_sample_size(weights)

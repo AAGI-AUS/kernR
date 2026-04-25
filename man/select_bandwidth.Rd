@@ -33,3 +33,11 @@ x <- matrix(rnorm(200), 100, 2)
 select_bandwidth(x, "median")
 
 }
+\seealso{
+\code{\link[=kernel_spec]{kernel_spec()}}, \code{\link[=kernel_matrix]{kernel_matrix()}}.
+
+Other kernels: 
+\code{\link{kernel_matrix}()},
+\code{\link{kernel_spec}()}
+}
+\concept{kernels}

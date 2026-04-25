@@ -21,6 +21,10 @@
 #'     \item{n_trimmed}{Number of scores that were trimmed.}
 #'   }
 #'
+#' @family nuisance
+#' @seealso [estimate_density_ratio()], [dr_date_test()],
+#'   [dr_dett_test()], [assess_overlap()].
+#'
 #' @examples
 #' set.seed(42)
 #' n <- 300
