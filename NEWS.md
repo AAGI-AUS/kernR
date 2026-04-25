@@ -1,5 +1,14 @@
 # kernR (development version)
 
+## kernR 0.1.1
+
+### Internal
+
+* Repository hygiene release. Removed the auto-generated `dependabot.yml`
+  config (it was creating noisy weekly action-bump PRs during initial
+  setup); will be reintroduced with a less aggressive cadence in a later
+  release. No user-visible change to the package surface.
+
 ## kernR 0.1.0
 
 ### New features
