@@ -39,7 +39,10 @@ jobs:
 
       - uses: codecov/codecov-action@v5
         with:
-          fail_ci_if_error: ${{ github.event_name != 'pull_request' && true || false }}
+          # Keep upload best-effort: missing CODECOV_TOKEN (e.g. on a
+          # protected branch before the secret is set) must not fail CI.
+          # Tests passing is what gates the workflow; coverage is reporting.
+          fail_ci_if_error: false
           files: ./cobertura.xml
           plugins: noop
           disable_search: true
